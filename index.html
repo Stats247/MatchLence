@@ -99,6 +99,10 @@
                </svg>
                Best Tips
            </button>
+            <button onclick="switchTab('todays-best')" id="tab-todays-best" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                Todays Best
+            </button>
             <button onclick="switchTab('analysis')" id="tab-analysis" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none">Analysis</button>
             <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -518,6 +522,140 @@
            </div>
        </div>
 
+        <!-- ==================== TODAYS BEST TAB ==================== -->
+        <div id="content-todays-best" class="hidden flex-col lg:flex-row w-full h-full gap-4">
+
+            <!-- Left Filter Panel (Orange Theme) -->
+            <aside class="w-full lg:w-72 xl:w-80 bg-white rounded-2xl shadow-sm border border-orange-200 flex flex-col shrink-0 overflow-hidden">
+                <div class="bg-orange-900 text-white p-3.5 border-b border-orange-800 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-orange-100">Todays Best Filters</h2>
+                    </div>
+                    <button onclick="tbResetFilters()" class="text-[11px] bg-orange-800 hover:bg-orange-700 text-orange-200 font-semibold px-2.5 py-1 rounded-md transition-colors border border-orange-700">Reset</button>
+                </div>
+
+                <div class="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+
+                    <div>
+                        <label class="block font-semibold text-orange-900 mb-1">Match Type</label>
+                        <select id="tb-filter-type" class="w-full border border-orange-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs bg-orange-50/30" onchange="tbApplyFilters()">
+                            <option value="">All Match Types</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-orange-900 mb-1">Competition</label>
+                        <select id="tb-filter-competition" class="w-full border border-orange-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs bg-orange-50/30" onchange="tbApplyFilters()">
+                            <option value="">All Competitions</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-orange-900 mb-1 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            Match Date
+                        </label>
+                        <select id="tb-filter-date" class="w-full border border-orange-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs bg-orange-50/30" onchange="tbApplyFilters()">
+                            <option value="">All Dates</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-orange-900 mb-1">Goals Prediction</label>
+                        <select id="tb-filter-goals" class="w-full border border-orange-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-orange-500 focus:outline-none text-xs bg-orange-50/30" onchange="tbApplyFilters()">
+                            <option value="">All Goals Predictions</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-orange-100/70 p-2.5 rounded-xl border border-orange-300">
+                        <label class="block font-bold text-orange-900 mb-1 flex items-center justify-between">
+                            <span>Score Tip</span>
+                            <span class="text-[10px] bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded">Filter</span>
+                        </label>
+                        <select id="tb-filter-scoretip" class="w-full border border-orange-400 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-orange-600 focus:outline-none text-xs bg-white font-semibold text-orange-950" onchange="tbApplyFilters()">
+                            <option value="">All Score Tips</option>
+                        </select>
+                    </div>
+
+                    <div class="pt-2 border-t border-orange-100">
+                        <button onclick="tbForceRefresh()" class="w-full bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-300 font-semibold py-1.5 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            Refresh Data
+                        </button>
+                    </div>
+
+                    <div class="bg-sky-50 p-2.5 rounded-xl border border-sky-200 text-[11px] text-sky-800">
+                        <span class="font-bold block mb-0.5">ℹ️ Live Sheet Data</span>
+                        Loads directly from the connected Google Sheet and stays in memory until you change tabs back or hit refresh.
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- Main Todays Best Content -->
+            <div class="flex-1 flex flex-col h-full gap-3 overflow-hidden">
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 shrink-0">
+                    <div class="bg-white p-3 rounded-xl border-t-4 border-t-orange-600 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Matches</span>
+                        <span id="tb-summary-total" class="text-xl font-extrabold text-orange-700">0</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border-t-4 border-t-emerald-600 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Matches Won</span>
+                        <span id="tb-summary-won" class="text-xl font-extrabold text-emerald-700">0</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border-t-4 border-t-blue-700 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Win Percentage</span>
+                        <span id="tb-summary-pct" class="text-xl font-extrabold text-blue-800">0.0%</span>
+                    </div>
+                </div>
+
+                <!-- Status / Loading / Error Banner -->
+                <div id="tb-status-banner" class="hidden shrink-0 text-xs font-semibold px-4 py-2 rounded-xl border"></div>
+
+                <!-- Match Table Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 flex-1 overflow-hidden flex flex-col">
+                    <div class="overflow-x-auto overflow-y-auto flex-1">
+                        <table class="w-full text-left border-collapse min-w-[1000px]">
+                            <thead class="bg-orange-950 text-white sticky top-0 z-10 shadow-sm text-[11px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-3.5 font-bold border-b border-orange-900">Match Date</th>
+                                    <th class="py-3 px-3.5 font-bold border-b border-orange-900">Home Team</th>
+                                    <th class="py-3 px-3.5 font-bold border-b border-orange-900">Away Team</th>
+                                    <th class="py-3 px-3 font-bold border-b border-orange-900 text-center">Home Odds</th>
+                                    <th class="py-3 px-3 font-bold border-b border-orange-900 text-center">Draw Odds</th>
+                                    <th class="py-3 px-3 font-bold border-b border-orange-900 text-center">Away Odds</th>
+                                    <th class="py-3 px-3 font-bold border-b border-orange-900 text-center">Confidence</th>
+                                    <th class="py-3 px-3 font-bold border-b border-orange-900 text-center bg-orange-900/60 text-orange-200">Score Tip</th>
+                                    <th class="py-3 px-3 font-bold border-b border-orange-900 text-center">Match Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tb-table-body" class="text-xs divide-y divide-slate-100">
+                                <!-- Dynamic JS Injection -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="flex justify-between items-center bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm shrink-0 text-xs">
+                    <span id="tb-page-info" class="text-slate-500 font-medium">Showing 0-0 of 0</span>
+                    <div class="flex items-center gap-3">
+                        <span id="tb-page-indicator" class="text-slate-500 font-semibold">Page 1 of 1</span>
+                        <div class="flex space-x-2">
+                            <button onclick="tbPrevPage()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Prev</button>
+                            <button onclick="tbNextPage()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- ==================== ANALYSIS TAB ==================== -->
         <div id="content-analysis" class="hidden flex-col lg:flex-row w-full h-full gap-4 overflow-hidden">
             
@@ -733,6 +871,26 @@
         </div>
     </div>
 
+    <!-- Todays Best Match Details Modal -->
+    <div id="tb-view-modal" class="fixed inset-0 bg-slate-900/60 hidden z-50 flex-col justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-white w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in border border-orange-200">
+            <div class="bg-orange-950 text-white px-6 py-4 flex justify-between items-center shadow-md">
+                <div>
+                    <span class="text-[10px] font-bold text-orange-300 uppercase tracking-widest block">Todays Best Match Details</span>
+                    <h3 id="tb-modal-title" class="text-lg font-black truncate">Match Details</h3>
+                </div>
+                <button onclick="closeModal('tb-view-modal')" class="text-orange-300 hover:text-white transition-colors bg-orange-900 p-1.5 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto bg-slate-50 flex-1">
+                <div id="tb-modal-content" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Injected by JS tbViewDetails() -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- All Matches Advanced Filters Modal -->
     <div id="adv-filter-modal" class="fixed inset-0 bg-slate-900/50 hidden z-50 flex-col justify-center items-center p-4">
         <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] border border-slate-200">
@@ -861,8 +1019,10 @@
     <script>
         const DATA_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4skYgtxtfHuZElx4Mrx2n4NC0keZGjsKxgZNHOpPGrkVy2j_5GQWmyNlQu1y5TAjQKfDHAiBVknfi/pub?gid=1663545554&single=true&output=csv';
         const SETTINGS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ZPDWEqN5dhGUsRkUDTFh2-osBnHf0aCkBUFHOOD_KHg/export?format=csv&gid=1001059226';
+        const TODAYS_BEST_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRdBYhj6V1eF7PoiOY2vQkXSTKYzvMlysukYQt05roAsuDEj6KsAXO_0tDOZHRYXhnxJqDLIEMoFoVA/pub?gid=0&single=true&output=csv';
         
         const ROWS_PER_PAGE = 35;
+        const TB_ROWS_PER_PAGE = 15; // NEW: Todays Best pagination size
         
         let globalData = [];
         let filteredAllData = [];
@@ -873,6 +1033,14 @@
         let bestPage = 1;
         let tipsPage = 1; // NEW
         let thresholds = {};
+
+        // NEW: Todays Best tab state (fully independent data source/pipeline)
+        let tbGlobalData = [];
+        let tbHeaderMap = {};
+        let tbFilteredData = [];
+        let tbPage = 1;
+        let tbLoaded = false;
+        let tbLastRawCSV = null;
         
         const settingsFields = [
             "Home Odds", "Draw Odds", "Away Odds", "Home Form", "Away Form", "Confidence %", 
@@ -940,7 +1108,7 @@
             const activeBtn = document.getElementById('tab-' + tabId);
             if (activeBtn) activeBtn.classList.add('active');
             
-            ['all-matches', 'best-matches', 'best-tips', 'analysis', 'settings'].forEach(id => {
+            ['all-matches', 'best-matches', 'best-tips', 'todays-best', 'analysis', 'settings'].forEach(id => {
                 const el = document.getElementById('content-' + id);
                 if (el) {
                     if (id === tabId) {
@@ -957,6 +1125,8 @@
                 renderAnalysisTab();
             } else if (tabId === 'best-tips') {
                 applyBestTipsFilters();
+            } else if (tabId === 'todays-best') {
+                loadTodaysBestData();
             }
         }
 
@@ -2073,6 +2243,375 @@
         function clearBmModelFilters(apply = true) {
             ['m1','m2','m3','m4'].forEach(m => { const el = document.getElementById('bm-model-' + m); if(el) el.value = ''; });
             if(apply) applyBestMatchesFilters();
+        }
+
+        // ==================== TODAYS BEST TAB (NEW) ====================
+        // Fully independent pipeline: own fetch/cache (via existing fetchWithFallback),
+        // own CSV parse + header map, own filters, own pagination, own modal.
+        // Does not touch globalData / headerMap / any other tab's state.
+
+        async function loadTodaysBestData(forceRefresh = false) {
+            tbShowStatus('loading', 'Loading latest matches from Google Sheet…');
+            try {
+                const csvText = await fetchWithFallback(TODAYS_BEST_SHEET_URL);
+                if (!csvText || csvText.trim() === '') throw new Error('The sheet returned no data.');
+
+                // Only re-parse / rebuild filters if the data actually changed (or first load / forced)
+                if (forceRefresh || !tbLoaded || csvText !== tbLastRawCSV) {
+                    tbLastRawCSV = csvText;
+                    parseTodaysBestCSV(csvText);
+                    populateTodaysBestFilters();
+                    tbLoaded = true;
+                }
+
+                tbApplyFilters();
+                tbShowStatus('');
+            } catch (error) {
+                console.error('Todays Best load error:', error);
+                tbShowStatus('error', 'Failed to load Todays Best data: ' + error.message);
+                if (!tbLoaded) {
+                    tbFilteredData = [];
+                    tbRenderSummary();
+                    tbRenderTable();
+                }
+            }
+        }
+
+        function tbForceRefresh() {
+            try {
+                const safeUrl = btoa(encodeURIComponent(TODAYS_BEST_SHEET_URL)).slice(0, 20);
+                sessionStorage.removeItem('datacompas_cache_' + safeUrl);
+                sessionStorage.removeItem('datacompas_cache_' + safeUrl + '_time');
+            } catch (e) { /* sessionStorage may be unavailable; ignore */ }
+            loadTodaysBestData(true);
+        }
+
+        function tbShowStatus(type, msg) {
+            const el = document.getElementById('tb-status-banner');
+            if (!el) return;
+            if (!type) { el.classList.add('hidden'); el.textContent = ''; return; }
+            el.classList.remove('hidden');
+            if (type === 'loading') {
+                el.className = 'shrink-0 text-xs font-semibold px-4 py-2 rounded-xl border bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-2';
+            } else if (type === 'error') {
+                el.className = 'shrink-0 text-xs font-semibold px-4 py-2 rounded-xl border bg-rose-50 text-rose-700 border-rose-200 flex items-center gap-2';
+            }
+            el.textContent = msg;
+        }
+
+        function parseTodaysBestCSV(csvText) {
+            const parsed = parseCSV(csvText);
+            tbGlobalData = [];
+            tbHeaderMap = {};
+            if (parsed.length < 2) return;
+
+            const headers = parsed[0];
+            headers.forEach((h, i) => {
+                const key = h.replace(/\s+/g, ' ').trim().toLowerCase();
+                if (!key) return;
+                if (!tbHeaderMap[key]) tbHeaderMap[key] = [];
+                tbHeaderMap[key].push(i);
+            });
+
+            for (let i = 1; i < parsed.length; i++) {
+                if (parsed[i].length > 1 && parsed[i].join('').trim() !== '') tbGlobalData.push(parsed[i]);
+            }
+        }
+
+        // Robust cell getter: handles missing columns, extra whitespace, case differences
+        function tbGetVal(row, colName, occurrence = 0) {
+            if (!row) return '';
+            const key = colName.replace(/\s+/g, ' ').trim().toLowerCase();
+            const indices = tbHeaderMap[key];
+            if (indices && Array.isArray(indices)) {
+                const idx = indices[occurrence] !== undefined ? indices[occurrence] : indices[0];
+                if (idx === undefined || idx >= row.length) return '';
+                return (row[idx] || '').toString().replace(/\s+/g, ' ').trim();
+            }
+            return '';
+        }
+
+        function tbFormatConfidence(val) {
+            if (val === undefined || val === null) return '-';
+            const str = val.toString().trim();
+            if (str === '' || str === '-') return '-';
+            if (str.includes('%')) return str;
+            const num = parseFloat(str);
+            if (!isNaN(num)) return `${num}%`;
+            return str;
+        }
+
+        // Best-effort date parser (used ONLY to sort the dynamic Match Date dropdown chronologically).
+        // Handles ISO, slash/dot/hyphen numeric dates, and "DD Mon [YYYY]" formats without breaking on bad input.
+        function tbParseDate(dateStr) {
+            if (!dateStr) return null;
+            const str = dateStr.toString().trim();
+            if (!str) return null;
+
+            const native = new Date(str);
+            if (!isNaN(native.getTime())) {
+                return { y: native.getFullYear(), m: native.getMonth() + 1, d: native.getDate() };
+            }
+
+            const monthMap = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+            const wordMatch = str.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s*(\d{2,4})?$/);
+            if (wordMatch) {
+                const d = parseInt(wordMatch[1], 10);
+                const m = monthMap[wordMatch[2].toLowerCase().substring(0,3)];
+                const yRaw = wordMatch[3];
+                const y = yRaw ? (yRaw.length === 2 ? 2000 + parseInt(yRaw,10) : parseInt(yRaw,10)) : new Date().getFullYear();
+                if (m && !isNaN(d)) return { y, m, d };
+            }
+
+            const numMatch = str.match(/^(\d{1,4})[-\/.](\d{1,2})[-\/.](\d{1,4})$/);
+            if (numMatch) {
+                const p1 = parseInt(numMatch[1], 10), p2 = parseInt(numMatch[2], 10), p3 = parseInt(numMatch[3], 10);
+                if (numMatch[1].length === 4) return { y: p1, m: p2, d: p3 };
+                if (p1 > 12) return { y: p3 < 100 ? 2000 + p3 : p3, m: p2, d: p1 };
+                return { y: p3 < 100 ? 2000 + p3 : p3, m: p1, d: p2 };
+            }
+            return null;
+        }
+
+        function populateTodaysBestFilters() {
+            const typesSet = new Set();
+            const compsSet = new Set();
+            const goalsSet = new Set();
+            const scoreTipsSet = new Set();
+            const datesSet = new Set();
+
+            tbGlobalData.forEach(row => {
+                const t = tbGetVal(row, 'Match Type'); if (t) typesSet.add(t);
+                const c = tbGetVal(row, 'Competition'); if (c) compsSet.add(c);
+                const g = tbGetVal(row, 'Goals Prediction'); if (g) goalsSet.add(g);
+                const s = tbGetVal(row, 'Score Tip'); if (s) scoreTipsSet.add(s);
+                const d = tbGetVal(row, 'Match Date'); if (d) datesSet.add(d);
+            });
+
+            const fillSelect = (id, values, allLabel) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const currentVal = el.value;
+                el.innerHTML = `<option value="">${allLabel}</option>`;
+                values.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v; opt.textContent = v;
+                    el.appendChild(opt);
+                });
+                if (values.includes(currentVal)) el.value = currentVal;
+            };
+
+            fillSelect('tb-filter-type', Array.from(typesSet).sort(), 'All Match Types');
+            fillSelect('tb-filter-competition', Array.from(compsSet).sort(), 'All Competitions');
+            fillSelect('tb-filter-goals', Array.from(goalsSet).sort(), 'All Goals Predictions');
+            fillSelect('tb-filter-scoretip', Array.from(scoreTipsSet).sort((a, b) => a.localeCompare(b, undefined, {numeric: true})), 'All Score Tips');
+
+            const sortedDates = Array.from(datesSet).sort((a, b) => {
+                const pa = tbParseDate(a), pb = tbParseDate(b);
+                if (pa && pb) {
+                    return new Date(pa.y, pa.m - 1, pa.d) - new Date(pb.y, pb.m - 1, pb.d);
+                }
+                return a.localeCompare(b);
+            });
+            fillSelect('tb-filter-date', sortedDates, 'All Dates');
+        }
+
+        // Normalizes score strings like "2-1", "2 – 1", "2:1" into {home, away}. Returns null if unparseable/empty.
+        function tbNormalizeScoreString(s) {
+            if (s === undefined || s === null) return null;
+            const str = s.toString().trim();
+            if (str === '' || str === '-') return null;
+            const cleaned = str.replace(/\s+/g, '');
+            const match = cleaned.match(/^(\d+)[-:–—](\d+)$/);
+            if (!match) return null;
+            return { home: parseInt(match[1], 10), away: parseInt(match[2], 10) };
+        }
+
+        function tbOutcomeFromScore(scoreObj) {
+            if (!scoreObj) return null;
+            if (scoreObj.home > scoreObj.away) return '1'; // Home win
+            if (scoreObj.home < scoreObj.away) return '2'; // Away win
+            return 'X'; // Draw
+        }
+
+        // Compares the OUTCOME predicted by Score Tip (Home/Draw/Away) against the outcome of Match Result —
+        // not the exact scoreline — per the win/loss rule.
+        function tbGetRowStatus(row) {
+            const predictedOutcome = tbOutcomeFromScore(tbNormalizeScoreString(tbGetVal(row, 'Score Tip')));
+            const actualOutcome = tbOutcomeFromScore(tbNormalizeScoreString(tbGetVal(row, 'Match Result')));
+            if (predictedOutcome === null || actualOutcome === null) return 'pending';
+            return predictedOutcome === actualOutcome ? 'won' : 'lost';
+        }
+
+        function tbApplyFilters() {
+            const safeVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+            const typeVal = safeVal('tb-filter-type').toLowerCase();
+            const compVal = safeVal('tb-filter-competition').toLowerCase();
+            const dateVal = safeVal('tb-filter-date');
+            const goalsVal = safeVal('tb-filter-goals').toLowerCase();
+            const scoreTipVal = safeVal('tb-filter-scoretip').toLowerCase();
+
+            tbFilteredData = tbGlobalData.filter(row => {
+                if (typeVal && (tbGetVal(row, 'Match Type') || '').toLowerCase() !== typeVal) return false;
+                if (compVal && (tbGetVal(row, 'Competition') || '').toLowerCase() !== compVal) return false;
+                if (dateVal && (tbGetVal(row, 'Match Date') || '') !== dateVal) return false;
+                if (goalsVal && (tbGetVal(row, 'Goals Prediction') || '').toLowerCase() !== goalsVal) return false;
+                if (scoreTipVal && (tbGetVal(row, 'Score Tip') || '').toLowerCase() !== scoreTipVal) return false;
+                return true;
+            });
+
+            tbPage = 1;
+            tbRenderSummary();
+            tbRenderTable();
+        }
+
+        function tbResetFilters() {
+            const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            safeSet('tb-filter-type', '');
+            safeSet('tb-filter-competition', '');
+            safeSet('tb-filter-date', '');
+            safeSet('tb-filter-goals', '');
+            safeSet('tb-filter-scoretip', '');
+            tbApplyFilters();
+        }
+
+        function tbRenderSummary() {
+            const total = tbFilteredData.length;
+            let won = 0;
+            tbFilteredData.forEach(row => { if (tbGetRowStatus(row) === 'won') won++; });
+            const pct = total > 0 ? (won / total) * 100 : 0;
+
+            const elTotal = document.getElementById('tb-summary-total');
+            const elWon = document.getElementById('tb-summary-won');
+            const elPct = document.getElementById('tb-summary-pct');
+            if (elTotal) elTotal.textContent = total.toString();
+            if (elWon) elWon.textContent = won.toString();
+            if (elPct) elPct.textContent = `${pct.toFixed(1)}%`;
+        }
+
+        function tbRenderTable() {
+            const tbody = document.getElementById('tb-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const total = tbFilteredData.length;
+            const totalPages = Math.max(1, Math.ceil(total / TB_ROWS_PER_PAGE));
+            if (tbPage > totalPages) tbPage = totalPages;
+
+            const pageInfo = document.getElementById('tb-page-info');
+            const pageIndicator = document.getElementById('tb-page-indicator');
+
+            if (total === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-12 text-center text-slate-500 font-medium">No matches found for the selected filters.</td></tr>`;
+                if (pageInfo) pageInfo.textContent = 'Showing 0-0 of 0';
+                if (pageIndicator) pageIndicator.textContent = 'Page 1 of 1';
+                return;
+            }
+
+            const startIdx = (tbPage - 1) * TB_ROWS_PER_PAGE;
+            const endIdx = Math.min(startIdx + TB_ROWS_PER_PAGE, total);
+            const pageData = tbFilteredData.slice(startIdx, endIdx);
+
+            pageData.forEach(row => {
+                const globalIdx = tbGlobalData.indexOf(row);
+                const status = tbGetRowStatus(row);
+                const rowStatusClass = status === 'won' ? 'win-green' : status === 'lost' ? 'loss-red' : 'hover:bg-slate-50';
+                const matchResult = tbGetVal(row, 'Match Result') || '-';
+                const resultBadgeClass = matchResult !== '-' ? 'bg-slate-900 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200';
+
+                const tr = document.createElement('tr');
+                tr.className = `cursor-pointer transition-colors border-b border-slate-100 ${rowStatusClass}`;
+                tr.onclick = () => tbViewDetails(globalIdx);
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3.5 font-semibold">${tbGetVal(row, 'Match Date') || '-'}</td>
+                    <td class="py-2.5 px-3.5 font-bold">${tbGetVal(row, 'Home Team') || '-'}</td>
+                    <td class="py-2.5 px-3.5 font-bold">${tbGetVal(row, 'Away Team') || '-'}</td>
+                    <td class="py-2.5 px-3 text-center font-mono">${tbGetVal(row, 'Home Odds') || '-'}</td>
+                    <td class="py-2.5 px-3 text-center font-mono">${tbGetVal(row, 'Draw Odds') || '-'}</td>
+                    <td class="py-2.5 px-3 text-center font-mono">${tbGetVal(row, 'Away Odds') || '-'}</td>
+                    <td class="py-2.5 px-3 text-center font-semibold">${tbFormatConfidence(tbGetVal(row, 'Prediction Confidence'))}</td>
+                    <td class="py-2.5 px-3 text-center"><span class="font-bold bg-orange-100 text-orange-800 border border-orange-200 px-2 py-0.5 rounded shadow-sm">${tbGetVal(row, 'Score Tip') || '-'}</span></td>
+                    <td class="py-2.5 px-3 text-center"><span class="inline-block px-2 py-1 rounded border shadow-sm ${resultBadgeClass}">${matchResult}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (pageInfo) pageInfo.textContent = `Showing ${startIdx + 1}-${endIdx} of ${total}`;
+            if (pageIndicator) pageIndicator.textContent = `Page ${tbPage} of ${totalPages}`;
+        }
+
+        function tbNextPage() {
+            const totalPages = Math.max(1, Math.ceil(tbFilteredData.length / TB_ROWS_PER_PAGE));
+            if (tbPage < totalPages) { tbPage++; tbRenderTable(); }
+        }
+
+        function tbPrevPage() {
+            if (tbPage > 1) { tbPage--; tbRenderTable(); }
+        }
+
+        function tbViewDetails(index) {
+            const row = tbGlobalData[index];
+            if (!row) return;
+
+            const homeTeam = tbGetVal(row, 'Home Team') || 'Home';
+            const awayTeam = tbGetVal(row, 'Away Team') || 'Away';
+            document.getElementById('tb-modal-title').textContent = `${homeTeam} vs ${awayTeam}`;
+
+            const content = document.getElementById('tb-modal-content');
+            content.innerHTML = '';
+
+            const iconPaths = {
+                form: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+                h2h: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-4.13a4 4 0 10-4-4 4 4 0 004 4zm6 0a4 4 0 10-4-4',
+                goals: 'M12 3c1.5 3 3 4.5 3 7.5a3 3 0 01-6 0C9 7.5 10.5 6 12 3z',
+                power: 'M13 10V3L4 14h7v7l9-11h-7z',
+                result: 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z',
+                link: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'
+            };
+            const iconSvg = (path) => `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${path}" /></svg>`;
+
+            const fieldRow = (label, value) => `
+                <div class="flex justify-between items-center bg-white/60 p-1.5 rounded border border-white">
+                    <span class="text-slate-600 font-medium truncate w-1/2 pr-2" title="${label}">${label}</span>
+                    <span class="font-bold text-slate-800 break-words text-right w-1/2">${value || '-'}</span>
+                </div>`;
+
+            const sections = [
+                { title: 'Form', icon: iconPaths.form, bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900',
+                  rows: [['Home Form', tbGetVal(row, 'Home Form')], ['Away Form', tbGetVal(row, 'Away Form')]] },
+                { title: 'Head-to-Head', icon: iconPaths.h2h, bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900',
+                  rows: [['H2H Home Win', tbGetVal(row, 'H2H Home Win')], ['H2H Draws', tbGetVal(row, 'H2H Draws')], ['H2H Away Win', tbGetVal(row, 'H2H Away Win')]] },
+                { title: 'Goals', icon: iconPaths.goals, bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-900',
+                  rows: [['Avg Home Scored', tbGetVal(row, 'Avg Home Scored')], ['Avg Away Scored', tbGetVal(row, 'Avg Away Scored')], ['Avg Home Conceded', tbGetVal(row, 'Avg Home Conceded')], ['Avg Away Conceded', tbGetVal(row, 'Avg Away Conceded')]] },
+                { title: 'Power & Position', icon: iconPaths.power, bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-900',
+                  rows: [['Home Power', tbGetVal(row, 'Home Power')], ['Away Power', tbGetVal(row, 'Away Power')], ['Home Position', tbGetVal(row, 'Home Position')], ['Away Position', tbGetVal(row, 'Away Position')]] },
+                { title: 'Result', icon: iconPaths.result, bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-800',
+                  rows: [['Match Result', tbGetVal(row, 'Match Result')]] }
+            ];
+
+            sections.forEach(sec => {
+                let html = `<div class="${sec.bg} border ${sec.border} rounded-xl p-4 shadow-sm h-full flex flex-col">
+                    <h4 class="font-bold ${sec.text} text-sm mb-3 uppercase tracking-wider border-b ${sec.border} pb-1 flex items-center gap-1.5">${iconSvg(sec.icon)} ${sec.title}</h4>
+                    <div class="space-y-2 flex-1 text-xs">`;
+                sec.rows.forEach(([label, value]) => { html += fieldRow(label, value); });
+                html += `</div></div>`;
+                content.innerHTML += html;
+            });
+
+            const matchUrlRaw = tbGetVal(row, 'Match URL');
+            const matchUrl = matchUrlRaw ? matchUrlRaw.replace(/"/g, '&quot;') : '';
+            let sourceHtml = `<div class="bg-sky-50 border border-sky-200 rounded-xl p-4 shadow-sm h-full flex flex-col">
+                <h4 class="font-bold text-sky-900 text-sm mb-3 uppercase tracking-wider border-b border-sky-200 pb-1 flex items-center gap-1.5">${iconSvg(iconPaths.link)} Source</h4>
+                <div class="flex-1 flex items-center">`;
+            if (matchUrl) {
+                sourceHtml += `<a href="${matchUrl}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3 py-2 rounded-lg shadow transition-colors flex items-center justify-center gap-1.5">${iconSvg(iconPaths.link)} Open Match Page</a>`;
+            } else {
+                sourceHtml += `<span class="text-xs text-slate-400 font-medium">No match URL available</span>`;
+            }
+            sourceHtml += `</div></div>`;
+            content.innerHTML += sourceHtml;
+
+            document.getElementById('tb-view-modal').style.display = 'flex';
         }
 
     </script>
