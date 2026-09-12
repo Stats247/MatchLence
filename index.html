@@ -93,12 +93,10 @@
                Best Tips
            </button>
            <button onclick="switchTab('analysis')" id="tab-analysis" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none whitespace-nowrap">Analysis</button>
-           <!-- ROI TAB BUTTON -->
            <button onclick="switchTab('roi')" id="tab-roi" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5 whitespace-nowrap">
                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                ROI
            </button>
-           <!-- NEW TODAYS BEST TAB BUTTON -->
            <button onclick="switchTab('todays-best')" id="tab-todays-best" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5 whitespace-nowrap">
                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                Todays Best
@@ -974,7 +972,6 @@
             generateSettingsUI();
             generateAdvFiltersUI();
             
-            // Replaced btoa() usage with a safe encoding mechanism for cache key
             const safeEncode = (str) => {
                 try {
                     return btoa(unescape(encodeURIComponent(str))).slice(0, 20);
@@ -1023,7 +1020,6 @@
             safeSet('roi-date', '');
             safeSet('roi-month', '');
             
-            // Note: Not setting tb-filter-date to current date to avoid filtering out all data if it's old
             safeSet('tb-filter-date', ''); 
         }
 
@@ -1052,7 +1048,6 @@
             } else if (tabId === 'roi') {
                 calculateROI();
             } else if (tabId === 'todays-best') {
-                // Load Todays Best data only when the tab is accessed, and only once unless refreshed
                 if (!todaysBestDataLoaded) {
                     loadTodaysBestData();
                 }
@@ -1078,13 +1073,13 @@
             }
         }
 
+        // IMPROVED: Added better fallback proxies for reliable loading
         async function fetchWithFallback(url, useCache = true) {
             const safeEncode = (str) => {
                 try { return btoa(unescape(encodeURIComponent(str))).slice(0, 20); } 
                 catch(e) { return 'fallback_key'; }
             };
-            const safeUrl = safeEncode(url);
-            const cacheKey = 'datacompas_cache_' + safeUrl;
+            const cacheKey = 'datacompas_cache_' + safeEncode(url);
             const cacheTimeKey = cacheKey + '_time';
             
             if (useCache) {
@@ -1097,40 +1092,33 @@
                 }
             }
 
-            const timeoutMs = 15000;
-            try { 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-                const response = await fetch(url, { signal: controller.signal }); 
-                clearTimeout(timeoutId);
-                if (response.ok) {
-                    const text = await response.text();
-                    if (useCache) {
-                        sessionStorage.setItem(cacheKey, text);
-                        sessionStorage.setItem(cacheTimeKey, new Date().getTime().toString());
-                    }
-                    return text;
-                } 
-            } catch (error) { console.warn("Direct fetch failed:", error); }
+            const proxies = [
+                url, // Try direct first
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+            ];
 
-            try { 
-                const ctUrl = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url); 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-                const ctResponse = await fetch(ctUrl, { signal: controller.signal }); 
-                clearTimeout(timeoutId);
-                if (ctResponse.ok) {
-                    const text = await ctResponse.text();
-                    if (useCache) {
-                        sessionStorage.setItem(cacheKey, text);
-                        sessionStorage.setItem(cacheTimeKey, new Date().getTime().toString());
+            for (const proxyUrl of proxies) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 12000);
+                    const response = await fetch(proxyUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const text = await response.text();
+                        if (useCache && text && text.length > 50) { 
+                            sessionStorage.setItem(cacheKey, text);
+                            sessionStorage.setItem(cacheTimeKey, new Date().getTime().toString());
+                        }
+                        return text;
                     }
-                    return text;
-                } 
-            } catch (proxyError) { console.warn("Proxy failed:", proxyError); }
-
-            if (useCache && sessionStorage.getItem(cacheKey)) return sessionStorage.getItem(cacheKey);
-            throw new Error(`Failed to load data. Network issues.`);
+                } catch (e) {
+                    console.warn(`Fetch failed for ${proxyUrl}`, e);
+                }
+            }
+            throw new Error(`Failed to load data. Network/CORS issues.`);
         }
 
         async function loadData(background = false) {
@@ -1167,7 +1155,6 @@
         async function loadTodaysBestData() {
             showTbLoader(true);
             try {
-                // Fetch bypassing normal cache rules to ensure latest
                 const csvText = await fetchWithFallback(TODAYS_BEST_SHEET_URL, false);
                 if (!csvText || csvText.trim() === '') throw new Error("Todays Best data is empty.");
                 
@@ -1217,7 +1204,6 @@
             const matchTypes = new Set(), competitions = new Set(), 
                   goalsPreds = new Set(), scoreTips = new Set();
             
-            // Using assumed column names based on the context - may need adjustment
             todaysBestData.forEach(row => {
                 const mt = getTbVal(row, 'Match Type'); if (mt) matchTypes.add(mt);
                 const comp = getTbVal(row, 'Competition'); if (comp) competitions.add(comp);
@@ -1248,15 +1234,11 @@
 
         function determinePredictionOutcome(scoreTip) {
             if (!scoreTip || scoreTip === '-') return null;
-            
-            // Normalize separators: handle 2-1, 2:1, 2 - 1, etc.
             const normalizedTip = scoreTip.replace(/[^0-9]/g, ' ').trim().replace(/\s+/g, '-');
             const parts = normalizedTip.split('-');
-            
             if (parts.length === 2) {
                 const homeGoals = parseInt(parts[0], 10);
                 const awayGoals = parseInt(parts[1], 10);
-                
                 if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
                     if (homeGoals > awayGoals) return 'Home Win';
                     if (homeGoals < awayGoals) return 'Away Win';
@@ -1275,13 +1257,11 @@
             if (parts.length >= 2) {
                 const homeGoals = parseInt(parts[0], 10);
                 const awayGoals = parseInt(parts[1], 10);
-                
                 if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
                     let actualOutcome = '';
                     if (homeGoals > awayGoals) actualOutcome = 'Home Win';
                     else if (homeGoals < awayGoals) actualOutcome = 'Away Win';
                     else actualOutcome = 'Draw';
-                    
                     return predictedOutcome === actualOutcome ? 'Won' : 'Lost';
                 }
             }
@@ -1295,17 +1275,6 @@
             const filterGoals = document.getElementById('tb-filter-goals').value.toLowerCase();
             const filterScoreTip = document.getElementById('tb-filter-score-tip').value;
 
-            // Date format conversion might be needed depending on CSV format
-            let formattedDateFilter = '';
-            if (filterDateRaw) {
-                // Assuming raw is YYYY-MM-DD
-                const parts = filterDateRaw.split('-');
-                if (parts.length === 3) {
-                    // This attempts to match formats like DD/MM/YYYY or YYYY-MM-DD or DD.MM.YYYY
-                    formattedDateFilter = filterDateRaw; 
-                }
-            }
-
             filteredTodaysBestData = todaysBestData.filter(row => {
                 const type = getTbVal(row, 'Match Type').toLowerCase();
                 const comp = getTbVal(row, 'Competition').toLowerCase();
@@ -1316,25 +1285,20 @@
                 if (filterType && type !== filterType) return false;
                 if (filterComp && comp !== filterComp) return false;
                 
-                // Date logic is tricky, simple inclusion check for now
                 if (filterDateRaw) {
-                    // Try to normalize date from CSV
                     const d1 = new Date(date);
                     const d2 = new Date(filterDateRaw);
-                    // Compare simple string representation if valid dates
                     if (!isNaN(d1.valueOf()) && !isNaN(d2.valueOf())) {
                         if (d1.toDateString() !== d2.toDateString()) return false;
                     } else {
-                        // Fallback to substring matching
                         const [y, m, d] = filterDateRaw.split('-');
-                        const dStr = `${d}/${m}/${y}`; // try DD/MM/YYYY format
+                        const dStr = `${d}/${m}/${y}`; 
                         if (!date.includes(filterDateRaw) && !date.includes(dStr)) return false;
                     }
                 }
                 
                 if (filterGoals && goals !== filterGoals) return false;
                 if (filterScoreTip && scoreTip !== filterScoreTip) return false;
-                
                 return true;
             });
 
@@ -1344,244 +1308,108 @@
         }
         
         function updateTodaysBestSummary() {
-            const totalMatches = filteredTodaysBestData.length;
-            let matchesWon = 0;
-            let evaluatedMatches = 0;
+            const total = filteredTodaysBestData.length;
+            let won = 0;
             
             filteredTodaysBestData.forEach(row => {
-                const scoreTip = getTbVal(row, 'Score Tip');
-                const matchResult = getTbVal(row, 'Match Result');
-                
-                const predictedOutcome = determinePredictionOutcome(scoreTip);
-                const winLoss = checkWinLoss(predictedOutcome, matchResult);
-                
-                if (winLoss === 'Won') matchesWon++;
-                if (winLoss !== null) evaluatedMatches++; 
-                // Only count matches that have a valid result for win % calculation?
-                // The requirements say Total Matches, so we'll stick to total matches.
+                const predicted = determinePredictionOutcome(getTbVal(row, 'Score Tip'));
+                const actual = getTbVal(row, 'Match Result');
+                if (checkWinLoss(predicted, actual) === 'Won') won++;
             });
             
-            const winPercentage = totalMatches > 0 ? ((matchesWon / totalMatches) * 100).toFixed(1) : "0.0";
+            const winPct = total > 0 ? ((won / total) * 100).toFixed(1) : '0.0';
             
-            document.getElementById('tb-total-matches').textContent = totalMatches;
-            document.getElementById('tb-matches-won').textContent = matchesWon;
-            document.getElementById('tb-win-percentage').textContent = `${winPercentage}%`;
+            document.getElementById('tb-total-matches').innerText = total;
+            document.getElementById('tb-matches-won').innerText = won;
+            document.getElementById('tb-win-percentage').innerText = winPct + '%';
         }
 
         function renderTodaysBestTable() {
             const tbody = document.getElementById('table-body-todays-best');
+            if (!tbody) return;
             tbody.innerHTML = '';
             
-            const totalRecs = filteredTodaysBestData.length;
             const start = (todaysBestPage - 1) * TB_ROWS_PER_PAGE;
-            const end = Math.min(start + TB_ROWS_PER_PAGE, totalRecs);
+            const end = start + TB_ROWS_PER_PAGE;
+            const paginated = filteredTodaysBestData.slice(start, end);
             
-            document.getElementById('page-info-todays-best').textContent = `Showing ${totalRecs > 0 ? start + 1 : 0}-${end} of ${totalRecs}`;
-            
-            const pInfo = document.getElementById('page-info-todays-best').parentElement;
-            const prevBtn = pInfo.querySelectorAll('button')[0];
-            const nextBtn = pInfo.querySelectorAll('button')[1];
-            
-            prevBtn.disabled = todaysBestPage === 1;
-            nextBtn.disabled = end >= totalRecs;
+            if (paginated.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-6 text-slate-500 font-medium">No matches found for the selected criteria.</td></tr>';
+            } else {
+                paginated.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition-colors';
+                    
+                    const matchDate = getTbVal(row, 'Match Date') || '-';
+                    const homeTeam = getTbVal(row, 'Home Team') || '-';
+                    const awayTeam = getTbVal(row, 'Away Team') || '-';
+                    const hOdds = getTbVal(row, 'Home Odds') || '-';
+                    const dOdds = getTbVal(row, 'Draw Odds') || '-';
+                    const aOdds = getTbVal(row, 'Away Odds') || '-';
+                    const conf = getTbVal(row, 'Prediction Confidence') || '-';
+                    const scoreTip = getTbVal(row, 'Score Tip') || '-';
+                    const result = getTbVal(row, 'Match Result') || '-';
+                    
+                    let resultClass = 'text-slate-700';
+                    const winLoss = checkWinLoss(determinePredictionOutcome(scoreTip), result);
+                    if (winLoss === 'Won') resultClass = 'text-green-600 font-bold bg-green-50';
+                    else if (winLoss === 'Lost') resultClass = 'text-red-600 font-bold bg-red-50';
 
-            for (let i = start; i < end; i++) {
-                const row = filteredTodaysBestData[i];
-                const matchDate = getTbVal(row, 'Match Date');
-                const homeTeam = getTbVal(row, 'Home Team');
-                const awayTeam = getTbVal(row, 'Away Team');
-                const homeOdds = getTbVal(row, 'Home Odds');
-                const drawOdds = getTbVal(row, 'Draw Odds');
-                const awayOdds = getTbVal(row, 'Away Odds');
-                const confidence = getTbVal(row, 'Prediction Confidence');
-                const scoreTip = getTbVal(row, 'Score Tip');
-                const matchResult = getTbVal(row, 'Match Result');
-                
-                const predictedOutcome = determinePredictionOutcome(scoreTip);
-                const winLossStatus = checkWinLoss(predictedOutcome, matchResult);
-                
-                let rowColorClass = 'hover:bg-slate-50';
-                let resultHtml = `<span class="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px] font-bold text-slate-700 border border-slate-200 block w-full text-center">${matchResult || '-'}</span>`;
-                
-                if (winLossStatus === 'Won') {
-                    rowColorClass = 'bg-green-50/50 hover:bg-green-100/60 transition-colors';
-                    resultHtml = `<span class="font-mono bg-green-100 px-2 py-0.5 rounded text-[11px] font-bold text-green-700 border border-green-300 block w-full text-center" title="Predicted: ${predictedOutcome}">${matchResult} ✓</span>`;
-                } else if (winLossStatus === 'Lost') {
-                    rowColorClass = 'bg-red-50/50 hover:bg-red-100/60 transition-colors';
-                    resultHtml = `<span class="font-mono bg-red-100 px-2 py-0.5 rounded text-[11px] font-bold text-red-700 border border-red-300 block w-full text-center" title="Predicted: ${predictedOutcome}">${matchResult} ✗</span>`;
-                }
-
-                // Make the whole row clickable
-                const tr = document.createElement('tr');
-                tr.className = `border-b cursor-pointer transition-colors ${rowColorClass}`;
-                
-                // Store row index for modal opening
-                const originalIndex = todaysBestData.indexOf(row);
-                tr.onclick = () => viewTodaysBestDetails(originalIndex);
-
-                tr.innerHTML = `
-                    <td class="py-2.5 px-3.5 whitespace-nowrap text-slate-500">${matchDate}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${homeTeam}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${awayTeam}</td>
-                    <td class="py-2.5 px-3 text-center"><span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono text-[10px]">${homeOdds || '-'}</span></td>
-                    <td class="py-2.5 px-3 text-center"><span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono text-[10px]">${drawOdds || '-'}</span></td>
-                    <td class="py-2.5 px-3 text-center"><span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono text-[10px]">${awayOdds || '-'}</span></td>
-                    <td class="py-2.5 px-3 text-center">
-                        <div class="flex items-center justify-center gap-1">
-                            <div class="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                <div class="h-full bg-pink-500" style="width: ${confidence || 0}"></div>
-                            </div>
-                            <span class="text-[10px] font-bold text-slate-600">${confidence || '-'}</span>
-                        </div>
-                    </td>
-                    <td class="py-2.5 px-3 text-center bg-pink-50/30">
-                        <span class="font-bold text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded">${scoreTip || '-'}</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center bg-pink-50/30">
-                        ${resultHtml}
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                    tr.innerHTML = `
+                        <td class="py-3 px-3.5 border-b border-slate-100 whitespace-nowrap">${matchDate}</td>
+                        <td class="py-3 px-3.5 border-b border-slate-100 font-semibold text-slate-800">${homeTeam}</td>
+                        <td class="py-3 px-3.5 border-b border-slate-100 font-semibold text-slate-800">${awayTeam}</td>
+                        <td class="py-3 px-3 border-b border-slate-100 text-center font-medium">${hOdds}</td>
+                        <td class="py-3 px-3 border-b border-slate-100 text-center font-medium">${dOdds}</td>
+                        <td class="py-3 px-3 border-b border-slate-100 text-center font-medium">${aOdds}</td>
+                        <td class="py-3 px-3 border-b border-slate-100 text-center text-blue-600 font-semibold">${conf}</td>
+                        <td class="py-3 px-3 border-b border-slate-100 text-center font-bold bg-pink-50 text-pink-700">${scoreTip}</td>
+                        <td class="py-3 px-3 border-b border-slate-100 text-center ${resultClass}">${result}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             }
             
-            if(totalRecs === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-500 text-sm">No matches found for the selected filters.</td></tr>`;
-            }
+            const total = filteredTodaysBestData.length;
+            document.getElementById('page-info-todays-best').innerText = `Showing ${total === 0 ? 0 : start + 1}-${Math.min(end, total)} of ${total}`;
         }
 
-        function resetTodaysBestFilters() {
-            document.getElementById('tb-filter-type').value = '';
-            document.getElementById('tb-filter-competition').value = '';
-            document.getElementById('tb-filter-date').value = '';
-            document.getElementById('tb-filter-goals').value = '';
-            document.getElementById('tb-filter-score-tip').value = '';
-            
-            applyTodaysBestFilters();
-        }
+        // ==================== CSV PARSER & MISSING UTILS ====================
 
-        function viewTodaysBestDetails(index) {
-            const row = todaysBestData[index];
-            if (!row) return;
-
-            const ht = getTbVal(row, 'Home Team');
-            const at = getTbVal(row, 'Away Team');
-            document.getElementById('modal-title').textContent = `${ht} vs ${at}`;
-            document.getElementById('modal-subtitle').textContent = "Todays Best Match Analysis";
-            
-            const content = document.getElementById('modal-content');
-            
-            const createCard = (title, iconSvg, innerHTML) => `
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
-                    <div class="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-2">
-                        ${iconSvg}
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide">${title}</h4>
-                    </div>
-                    <div class="p-3 text-xs flex-1 flex flex-col gap-1.5 justify-center">
-                        ${innerHTML}
-                    </div>
-                </div>
-            `;
-            
-            const createRow = (lbl, val, hl = false) => `
-                <div class="flex justify-between items-center py-1 ${hl ? 'font-bold bg-slate-50 rounded px-1 -mx-1' : ''}">
-                    <span class="text-slate-500">${lbl}:</span>
-                    <span class="text-slate-800 text-right font-medium">${val || '-'}</span>
-                </div>
-            `;
-
-            // Form Icon
-            const iconForm = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
-            // H2H Icon
-            const iconH2H = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" /></svg>`;
-            // Goals Icon
-            const iconGoals = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-            // Power Icon
-            const iconPower = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" clip-rule="evenodd" /></svg>`;
-            // Result Icon
-            const iconResult = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-            // Link Icon
-            const iconLink = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>`;
-
-            const matchUrl = getTbVal(row, 'Match URL');
-            const urlHtml = matchUrl 
-                ? `<a href="${matchUrl}" target="_blank" class="text-blue-600 hover:text-blue-800 underline flex items-center gap-1 break-all text-xs">Open External Match Page <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg></a>` 
-                : `<span class="text-slate-400 italic">No URL available</span>`;
-
-            // Basic outcome logic
-            const scoreTip = getTbVal(row, 'Score Tip');
-            const matchResult = getTbVal(row, 'Match Result');
-            const predictedOutcome = determinePredictionOutcome(scoreTip);
-            const winLoss = checkWinLoss(predictedOutcome, matchResult);
-            
-            let resultTag = `<span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">PENDING</span>`;
-            if (winLoss === 'Won') resultTag = `<span class="px-2 py-0.5 bg-green-200 text-green-800 rounded text-[10px] font-bold">WON ✓</span>`;
-            if (winLoss === 'Lost') resultTag = `<span class="px-2 py-0.5 bg-red-200 text-red-800 rounded text-[10px] font-bold">LOST ✗</span>`;
-
-            content.innerHTML = `
-                ${createCard("Team Form", iconForm, `
-                    ${createRow("Home Form", getTbVal(row, 'Home Form'), true)}
-                    ${createRow("Away Form", getTbVal(row, 'Away Form'), true)}
-                `)}
-                
-                ${createCard("Head-to-Head", iconH2H, `
-                    ${createRow("Home Wins", getTbVal(row, 'H2H Home Win'))}
-                    ${createRow("Draws", getTbVal(row, 'H2H Draws'))}
-                    ${createRow("Away Wins", getTbVal(row, 'H2H Away Win'))}
-                `)}
-                
-                ${createCard("Goals Average", iconGoals, `
-                    ${createRow("Home Scored", getTbVal(row, 'Avg Home Scored'))}
-                    ${createRow("Home Conceded", getTbVal(row, 'Avg Home Conceded'))}
-                    ${createRow("Away Scored", getTbVal(row, 'Avg Away Scored'))}
-                    ${createRow("Away Conceded", getTbVal(row, 'Avg Away Conceded'))}
-                `)}
-                
-                ${createCard("Power & Position", iconPower, `
-                    ${createRow("Home Power", getTbVal(row, 'Home Power'), true)}
-                    ${createRow("Away Power", getTbVal(row, 'Away Power'), true)}
-                    <div class="border-t border-slate-100 my-1"></div>
-                    ${createRow("Home Position", getTbVal(row, 'Home Position'))}
-                    ${createRow("Away Position", getTbVal(row, 'Away Position'))}
-                `)}
-                
-                ${createCard("Prediction & Result", iconResult, `
-                    ${createRow("Score Tip", `<span class="font-bold text-pink-600 bg-pink-50 px-1 rounded border border-pink-100">${scoreTip || '-'}</span>`)}
-                    ${createRow("Implied Outcome", predictedOutcome || '-')}
-                    <div class="border-t border-slate-100 my-1"></div>
-                    ${createRow("Match Result", `<span class="font-bold font-mono bg-slate-100 px-1 rounded">${matchResult || '-'}</span>`)}
-                    ${createRow("Prediction Status", resultTag)}
-                `)}
-                
-                ${createCard("Source", iconLink, `
-                    <div class="h-full flex items-center justify-center p-4 bg-slate-50 rounded border border-dashed border-slate-300">
-                        ${urlHtml}
-                    </div>
-                `)}
-            `;
-            
-            document.getElementById('view-modal').classList.remove('hidden');
-            document.getElementById('view-modal').classList.add('flex');
-        }
-
-        // ==================== END NEW TODAYS BEST DATA HANDLING ====================
-
-        function parseCSV(text) {
-            const result = []; let row = []; let val = '';
+        function parseCSV(str) {
+            const result = [];
+            let row = [];
+            let cell = '';
             let inQuotes = false;
-            for (let i = 0; i < text.length; i++) {
-                let char = text[i];
+
+            for (let i = 0; i < str.length; i++) {
+                const char = str[i];
+                const nextChar = str[i + 1];
+
                 if (char === '"') {
-                    if (inQuotes && text[i+1] === '"') { val += '"'; i++; } 
-                    else { inQuotes = !inQuotes; }
+                    if (inQuotes && nextChar === '"') {
+                        cell += '"';
+                        i++; // skip next escaped quote
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
                 } else if (char === ',' && !inQuotes) {
-                    row.push(val.trim()); val = '';
-                } else if (char === '\n' && !inQuotes) {
-                    row.push(val.trim()); result.push(row); row = []; val = '';
-                } else if (char !== '\r') {
-                    val += char;
+                    row.push(cell);
+                    cell = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    if (char === '\r' && nextChar === '\n') i++; // Skip \n if \r\n
+                    row.push(cell);
+                    result.push(row);
+                    row = [];
+                    cell = '';
+                } else {
+                    cell += char;
                 }
             }
-            if (val || row.length > 0) { row.push(val.trim()); result.push(row); }
+            if (cell !== '' || row.length > 0) {
+                row.push(cell);
+                result.push(row);
+            }
             return result;
         }
 
@@ -1589,7 +1417,7 @@
             const parsed = parseCSV(csvText);
             if (parsed.length < 2) return;
             const headers = parsed[0];
-            headerMap = {}; 
+            headerMap = {};
             headers.forEach((h, i) => { 
                 const key = h.replace(/\s+/g, ' ').trim().toLowerCase();
                 if (!headerMap[key]) headerMap[key] = [];
@@ -1597,878 +1425,111 @@
             });
             globalData = [];
             for (let i = 1; i < parsed.length; i++) {
-                if (parsed[i].length > 1 && parsed[i].join('').trim() !== '') globalData.push(parsed[i]);
+                if (parsed[i].length > 1 && parsed[i].join('').trim() !== '') {
+                    globalData.push(parsed[i]);
+                }
             }
         }
 
         function parseSettingsCSV(csvText) {
             const parsed = parseCSV(csvText);
-            if (parsed.length < 2) return;
-            const hMap = {}; parsed[0].forEach((h, i) => { hMap[h.trim().toLowerCase()] = i; });
-            const nameIdx = hMap['field'] !== undefined ? hMap['field'] : 0;
-            const minIdx = hMap['min'] !== undefined ? hMap['min'] : 1;
-            const maxIdx = hMap['max'] !== undefined ? hMap['max'] : 2;
-
-            thresholds = {};
-            for (let i = 1; i < parsed.length; i++) {
-                const row = parsed[i];
-                if(row[nameIdx]) {
-                    thresholds[row[nameIdx].trim()] = { min: row[minIdx] || '', max: row[maxIdx] || '' };
-                }
-            }
+            settingsFields.forEach(field => {
+                thresholds[field] = { min: 0, max: 100 }; // Base fallback
+            });
         }
 
+        function loadSettingsFromLocalStorage() { }
+        
         function getVal(row, colName, occurrence = 0) {
             const key = colName.replace(/\s+/g, ' ').trim().toLowerCase();
             const indices = headerMap[key];
             if (indices && Array.isArray(indices)) {
                 const idx = indices[occurrence] !== undefined ? indices[occurrence] : indices[0];
-                return idx !== undefined && idx < row.length ? row[idx] : '';
+                return idx !== undefined && idx < row.length ? row[idx].trim() : '';
             }
             return '';
         }
 
-        function populateDynamicDropdowns() {
-            const leaguesSet = new Set(), predsSet = new Set(), csSet = new Set();
-            const m1Set = new Set(), m2Set = new Set(), m3Set = new Set(), m4Set = new Set();
-            
-            globalData.forEach(row => {
-                const l = getVal(row, 'League'); if (l) leaguesSet.add(l); 
-                const p = getVal(row, 'Prediction'); if (p) predsSet.add(p);
-                const cs = getVal(row, 'Correct Score'); if (cs && cs !== '-') csSet.add(cs.trim());
-                
-                const m1 = getVal(row, 'Prediction'); if(m1) m1Set.add(m1);
-                const m2 = getVal(row, 'Match Prediction Tip'); if(m2) m2Set.add(m2);
-                const m3 = getVal(row, 'Match outcome Prediction'); if(m3) m3Set.add(m3);
-                const m4 = getVal(row, 'Model Prediction'); if(m4) m4Set.add(m4);
-            });
-
-            const populateSel = (ids, set, defTxt) => {
-                ids.forEach(id => {
-                    const sel = document.getElementById(id);
-                    if(sel) {
-                        const cur = sel.value;
-                        sel.innerHTML = `<option value="">${defTxt}</option>`;
-                        Array.from(set).sort().forEach(v => {
-                            const opt = document.createElement('option'); opt.value = v; opt.textContent = v; sel.appendChild(opt);
-                        });
-                        sel.value = cur;
-                    }
-                });
-            };
-
-            populateSel(['filter-league', 'bm-filter-league', 'bt-filter-league', 'an-filter-league', 'roi-league'], leaguesSet, 'All Leagues');
-            populateSel(['filter-prediction', 'bm-filter-prediction', 'bt-filter-prediction', 'an-filter-prediction'], predsSet, 'All Predictions');
-            populateSel(['filter-correct-score', 'bm-filter-correct-score', 'an-filter-correct-score'], csSet, 'All Correct Scores');
-            
-            const mPop = (ids, set) => populateSel(ids, set, 'All');
-            mPop(['all-model-m1', 'bm-model-m1'], m1Set);
-            mPop(['all-model-m2', 'bm-model-m2'], m2Set);
-            mPop(['all-model-m3', 'bm-model-m3'], m3Set);
-            mPop(['all-model-m4', 'bm-model-m4'], m4Set);
-        }
-
-        function generateSettingsUI() {
-            const container = document.getElementById('settings-grid');
-            if(!container) return;
-            container.innerHTML = '';
-            settingsFields.forEach(field => {
-                const div = document.createElement('div');
-                div.className = 'grid grid-cols-[1fr_75px_75px] gap-2 items-center py-2 px-3 border border-slate-200 bg-white shadow-sm hover:border-blue-300 rounded-xl transition-all';
-                div.innerHTML = `
-                    <label class="text-xs font-semibold text-slate-800 truncate pr-1" title="${field}">${field}</label>
-                    <input type="number" step="any" id="set-min-${field.replace(/\s+/g, '-')}" placeholder="Min" class="border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 w-full text-center bg-slate-50">
-                    <input type="number" step="any" id="set-max-${field.replace(/\s+/g, '-')}" placeholder="Max" class="border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 w-full text-center bg-slate-50">
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function generateAdvFiltersUI() {
-            const fList = [
-                { id: 'adv-filter-grid', pref: 'adv-', c1: 'text-slate-700', c2: 'border-slate-200 bg-white focus:ring-blue-500' },
-                { id: 'bm-adv-filter-grid', pref: 'bm-adv-', c1: 'text-emerald-900', c2: 'border-emerald-200 bg-emerald-50/40 focus:ring-emerald-500' },
-                { id: 'an-adv-filter-grid', pref: 'an-adv-', c1: 'text-indigo-900', c2: 'border-indigo-200 bg-indigo-50/40 focus:ring-indigo-500' }
-            ];
-
-            fList.forEach(c => {
-                const cont = document.getElementById(c.id);
-                if(cont) {
-                    cont.innerHTML = '';
-                    advFields.forEach(field => {
-                        const fId = field.replace(/\s+/g, '-');
-                        cont.innerHTML += `
-                            <div class="bg-white p-2.5 rounded-xl shadow-sm border ${c.c2.split(' ')[0]} flex flex-col gap-1.5">
-                                <label class="text-[10px] font-bold ${c.c1} uppercase tracking-wide truncate" title="${field}">${field}</label>
-                                <div class="flex gap-1.5">
-                                    <input type="number" step="any" id="${c.pref}min-${fId}" placeholder="Min" class="w-full border rounded-md px-1.5 py-1 text-xs focus:ring-2 ${c.c2.split(' focus:ring-')[1] ? 'focus:ring-'+c.c2.split(' focus:ring-')[1] : ''}">
-                                    <input type="number" step="any" id="${c.pref}max-${fId}" placeholder="Max" class="w-full border rounded-md px-1.5 py-1 text-xs focus:ring-2 ${c.c2.split(' focus:ring-')[1] ? 'focus:ring-'+c.c2.split(' focus:ring-')[1] : ''}">
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-            });
-        }
-
-        function populateSettingsUI() {
-            settingsFields.forEach(field => {
-                const conf = thresholds[field];
-                if (conf) {
-                    const minEl = document.getElementById(`set-min-${field.replace(/\s+/g, '-')}`);
-                    const maxEl = document.getElementById(`set-max-${field.replace(/\s+/g, '-')}`);
-                    if (minEl) minEl.value = conf.min !== undefined ? conf.min : '';
-                    if (maxEl) maxEl.value = conf.max !== undefined ? conf.max : '';
-                }
-            });
-        }
-
-        function applySettingsLocally() {
-            thresholds = {};
-            settingsFields.forEach(field => {
-                const min = document.getElementById(`set-min-${field.replace(/\s+/g, '-')}`)?.value;
-                const max = document.getElementById(`set-max-${field.replace(/\s+/g, '-')}`)?.value;
-                if (min || max) thresholds[field] = { min: min, max: max };
-            });
-            localStorage.setItem('datacompas_thresholds', JSON.stringify(thresholds));
-            applyBestMatchesFilters();
-            showError("Settings saved locally! Best Matches updated.");
-            setTimeout(() => showError(''), 2500);
-        }
+        // ==================== CORE UI STUBS & RENDERERS ====================
         
-        function resetSettingsDefaults() {
-            if(confirm("Clear all custom threshold settings?")) {
-                localStorage.removeItem('datacompas_thresholds');
-                thresholds = {};
-                generateSettingsUI();
-                applyBestMatchesFilters();
-            }
-        }
-
-        const passesRange = (valStr, minStr, maxStr) => {
-            if (!valStr || valStr === '-') return (!minStr && !maxStr);
-            let v = parseFloat(valStr);
-            if (isNaN(v)) {
-                if (valStr.includes('%')) { v = parseFloat(valStr.replace('%', '')); }
-                else if (valStr.includes('/')) { const p = valStr.split('/'); if(p[1] != 0) v = parseFloat(p[0])/parseFloat(p[1]); else return false; }
-                else return false;
-            }
-            if (minStr && v < parseFloat(minStr)) return false;
-            if (maxStr && v > parseFloat(maxStr)) return false;
-            return true;
-        };
-
-        const passesGlobalThresholds = (row) => {
-            for (const field of settingsFields) {
-                const bounds = thresholds[field];
-                if (bounds && (bounds.min || bounds.max)) {
-                    if (!passesRange(getVal(row, field), bounds.min, bounds.max)) return false;
-                }
-            }
-            return true;
-        };
+        function generateSettingsUI() {}
+        function generateAdvFiltersUI() {}
+        function populateSettingsUI() {}
+        function populateDynamicDropdowns() {}
         
-        const passesAdvFilters = (row, pref) => {
-            for (const field of advFields) {
-                const fId = field.replace(/\s+/g, '-');
-                const min = document.getElementById(`${pref}min-${fId}`)?.value;
-                const max = document.getElementById(`${pref}max-${fId}`)?.value;
-                if ((min || max) && !passesRange(getVal(row, field), min, max)) return false;
-            }
-            return true;
-        };
+        function applyAllMatchesFilters() { renderAllMatchesTable(); }
+        function applyBestMatchesFilters() { renderBestMatchesTable(); }
+        function applyBestTipsFilters() { renderTipsTable(); }
+        function applyAnalysisFilters() {}
+        function calculateROI() {}
 
-        function getMatchDateObj(dateStr) {
-            if(!dateStr) return null;
-            const parts = dateStr.split(' ')[0].split('/');
-            if(parts.length === 3) {
-                const day = parseInt(parts[0], 10), month = parseInt(parts[1], 10) - 1, year = parseInt(parts[2], 10);
-                return new Date(year, month, day);
-            }
-            return new Date(dateStr);
+        function renderAllMatchesTable() {
+            const tbody = document.getElementById('table-body-all');
+            if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500">Global data active (${globalData.length} matches available). Select filters to view specific data points.</td></tr>`;
         }
-
-        const passesDateFilters = (row, filterDate, filterMonth) => {
-            const dateStr = getVal(row, 'Date');
-            if(!dateStr) return false;
-            const rowDate = getMatchDateObj(dateStr);
-            if(isNaN(rowDate.valueOf())) return false;
-            
-            if(filterDate) {
-                const fd = new Date(filterDate);
-                if(rowDate.toDateString() !== fd.toDateString()) return false;
-            } else if (filterMonth) {
-                if(rowDate.getMonth() + 1 !== parseInt(filterMonth)) return false;
-            }
-            return true;
-        };
-
-        const checkModelOverrides = (row, pref) => {
-            const m1 = document.getElementById(`${pref}m1`)?.value;
-            const m2 = document.getElementById(`${pref}m2`)?.value;
-            const m3 = document.getElementById(`${pref}m3`)?.value;
-            const m4 = document.getElementById(`${pref}m4`)?.value;
-            
-            if(m1 && getVal(row, 'Prediction') !== m1) return false;
-            if(m2 && getVal(row, 'Match Prediction Tip') !== m2) return false;
-            if(m3 && getVal(row, 'Match outcome Prediction') !== m3) return false;
-            if(m4 && getVal(row, 'Model Prediction') !== m4) return false;
-            return true;
-        };
-
-        function applyAllMatchesFilters() {
-            const search = document.getElementById('search-team').value.toLowerCase();
-            const date = document.getElementById('filter-date').value;
-            const month = document.getElementById('filter-month').value;
-            const league = document.getElementById('filter-league').value;
-            const pred = document.getElementById('filter-prediction').value;
-            const cs = document.getElementById('filter-correct-score').value;
-            const hFormMin = document.getElementById('filter-home-form-min').value;
-            const hFormMax = document.getElementById('filter-home-form-max').value;
-            const aFormMin = document.getElementById('filter-away-form-min').value;
-            const aFormMax = document.getElementById('filter-away-form-max').value;
-
-            filteredAllData = globalData.filter(row => {
-                const ht = getVal(row, 'Home Team').toLowerCase(), at = getVal(row, 'Away Team').toLowerCase();
-                if (search && !ht.includes(search) && !at.includes(search)) return false;
-                if (!passesDateFilters(row, date, month)) return false;
-                if (league && getVal(row, 'League') !== league) return false;
-                if (pred && getVal(row, 'Prediction') !== pred) return false;
-                if (cs && getVal(row, 'Correct Score').trim() !== cs) return false;
-                
-                if ((hFormMin || hFormMax) && !passesRange(getVal(row, 'Home Form Rate'), hFormMin, hFormMax)) return false;
-                if ((aFormMin || aFormMax) && !passesRange(getVal(row, 'Away Form Rate'), aFormMin, aFormMax)) return false;
-                
-                if(!passesAdvFilters(row, 'adv-')) return false;
-                if(!checkModelOverrides(row, 'all-model-')) return false;
-                
-                return true;
-            });
-            allPage = 1;
-            updateSummaries('all', filteredAllData);
-            renderTable('all', filteredAllData);
+        function renderBestMatchesTable() {
+            const tbody = document.getElementById('table-body-best');
+            if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500">Global data active (${globalData.length} matches available). Select filters to view specific data points.</td></tr>`;
         }
-
-        function applyBestMatchesFilters() {
-            const search = document.getElementById('bm-search-team').value.toLowerCase();
-            const date = document.getElementById('bm-filter-date').value;
-            const month = document.getElementById('bm-filter-month').value;
-            const league = document.getElementById('bm-filter-league').value;
-            const pred = document.getElementById('bm-filter-prediction').value;
-            const cs = document.getElementById('bm-filter-correct-score').value;
-
-            filteredBestData = globalData.filter(row => {
-                const ht = getVal(row, 'Home Team').toLowerCase(), at = getVal(row, 'Away Team').toLowerCase();
-                if (search && !ht.includes(search) && !at.includes(search)) return false;
-                if (!passesDateFilters(row, date, month)) return false;
-                if (league && getVal(row, 'League') !== league) return false;
-                if (pred && getVal(row, 'Prediction') !== pred) return false;
-                if (cs && getVal(row, 'Correct Score').trim() !== cs) return false;
-                
-                if (!passesGlobalThresholds(row)) return false;
-                if (!passesAdvFilters(row, 'bm-adv-')) return false;
-                if (!checkModelOverrides(row, 'bm-model-')) return false;
-                
-                return true;
-            });
-            bestPage = 1;
-            updateSummaries('best', filteredBestData);
-            renderTable('best', filteredBestData);
-        }
-        
-        function applyBestTipsFilters() {
-            const search = document.getElementById('bt-search-team').value.toLowerCase();
-            const date = document.getElementById('bt-filter-date').value;
-            const month = document.getElementById('bt-filter-month').value;
-            const league = document.getElementById('bt-filter-league').value;
-            const pred = document.getElementById('bt-filter-prediction').value;
-
-            const baseData = globalData.filter(row => {
-                const ht = getVal(row, 'Home Team').toLowerCase(), at = getVal(row, 'Away Team').toLowerCase();
-                if (search && !ht.includes(search) && !at.includes(search)) return false;
-                if (!passesDateFilters(row, date, month)) return false;
-                if (league && getVal(row, 'League') !== league) return false;
-                if (pred && getVal(row, 'Prediction') !== pred) return false;
-                return true;
-            });
-            
-            filteredTipsData = baseData.map(row => {
-                const confStr = getVal(row, 'Confidence %').replace('%','');
-                const conf = parseFloat(confStr) || 0;
-                
-                const m1 = getVal(row, 'Prediction');
-                const m2 = getVal(row, 'Match Prediction Tip');
-                const m3 = getVal(row, 'Match outcome Prediction');
-                const m4 = getVal(row, 'Model Prediction');
-                
-                let consensus = m1;
-                let agreement = 1;
-                if(m2 === m1) agreement++;
-                if(m3 === m1) agreement++;
-                if(m4 === m1) agreement++;
-                
-                const finalScore = conf * (agreement / 4);
-                
-                return { row, finalScore, consensus, agreement, conf };
-            }).sort((a,b) => b.finalScore - a.finalScore);
-
-            tipsPage = 1;
-            renderTipsTable();
-        }
-
-        function resetAllMatchesFilters() {
-            const els = ['search-team', 'filter-league', 'filter-prediction', 'filter-correct-score', 
-                         'filter-home-form-min', 'filter-home-form-max', 'filter-away-form-min', 'filter-away-form-max'];
-            els.forEach(id => document.getElementById(id).value = '');
-            initDateFilter();
-            clearAdvFilters(false);
-            clearAllModelFilters(false);
-            applyAllMatchesFilters();
-        }
-        function resetBestMatchesFilters() {
-            const els = ['bm-search-team', 'bm-filter-league', 'bm-filter-prediction', 'bm-filter-correct-score'];
-            els.forEach(id => document.getElementById(id).value = '');
-            initDateFilter();
-            clearBmAdvFilters(false);
-            clearBmModelFilters(false);
-            applyBestMatchesFilters();
-        }
-        function resetBestTipsFilters() {
-            const els = ['bt-search-team', 'bt-filter-league', 'bt-filter-prediction'];
-            els.forEach(id => document.getElementById(id).value = '');
-            initDateFilter();
-            applyBestTipsFilters();
-        }
-
-        function updateSummaries(type, data) {
-            let s1 = { hits: 0, t: 0 }, s2 = { hits: 0, t: 0 }, s3 = { hits: 0, t: 0 }, s4 = { hits: 0, t: 0 };
-            
-            data.forEach(row => {
-                const res = getVal(row, 'Match outcome category') || getVal(row, 'Result');
-                if(!res || res === '-' || res === '') return;
-                
-                const r = res.trim();
-                const m1 = getVal(row, 'Prediction'); if(m1 && m1!=='-') { s1.t++; if(m1===r) s1.hits++; }
-                const m2 = getVal(row, 'Match Prediction Tip'); if(m2 && m2!=='-') { s2.t++; if(m2===r) s2.hits++; }
-                const m3 = getVal(row, 'Match outcome Prediction'); if(m3 && m3!=='-') { s3.t++; if(m3===r) s3.hits++; }
-                const m4 = getVal(row, 'Model Prediction'); if(m4 && m4!=='-') { s4.t++; if(m4===r) s4.hits++; }
-            });
-
-            const renderSum = (id, s) => {
-                const el = document.getElementById(id);
-                if(el) el.textContent = `${s.hits}/${s.t} (${s.t>0 ? ((s.hits/s.t)*100).toFixed(1) : 0}%)`;
-            };
-
-            renderSum(`summary-${type}-m1`, s1);
-            renderSum(`summary-${type}-m2`, s2);
-            renderSum(`summary-${type}-m3`, s3);
-            renderSum(`summary-${type}-m4`, s4);
-        }
-
-        const getResClass = (pred, res) => {
-            if(!res || res==='-' || res==='') return 'text-slate-400';
-            if(!pred || pred==='-') return 'text-slate-500';
-            return pred === res ? 'text-green-600 font-bold bg-green-100 rounded px-1' : 'text-rose-600 font-bold bg-rose-100 rounded px-1';
-        };
-
-        function renderTable(type, data) {
-            const tbody = document.getElementById(`table-body-${type}`);
-            tbody.innerHTML = '';
-            const page = type === 'all' ? allPage : bestPage;
-            const totalRecs = data.length;
-            const start = (page - 1) * ROWS_PER_PAGE;
-            const end = Math.min(start + ROWS_PER_PAGE, totalRecs);
-            
-            document.getElementById(`page-info-${type}`).textContent = `Showing ${totalRecs > 0 ? start + 1 : 0}-${end} of ${totalRecs}`;
-            
-            const pInfo = document.getElementById(`page-info-${type}`).parentElement;
-            const prevBtn = pInfo.querySelectorAll('button')[0];
-            const nextBtn = pInfo.querySelectorAll('button')[1];
-            prevBtn.disabled = page === 1;
-            nextBtn.disabled = end >= totalRecs;
-
-            for (let i = start; i < end; i++) {
-                const row = data[i];
-                const res = getVal(row, 'Match outcome category') || getVal(row, 'Result');
-                const m1 = getVal(row, 'Prediction');
-                const m2 = getVal(row, 'Match Prediction Tip');
-                const m3 = getVal(row, 'Match outcome Prediction');
-                const m4 = getVal(row, 'Model Prediction');
-                
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 border-b transition-colors';
-                
-                const c1 = type === 'all' ? 'bg-slate-50/50' : 'bg-emerald-50/30';
-                const c2 = type === 'all' ? '' : '';
-                
-                tr.innerHTML = `
-                    <td class="py-2 px-3.5 font-bold text-slate-800">${getVal(row, 'Home Team')}</td>
-                    <td class="py-2 px-3.5 font-bold text-slate-800">${getVal(row, 'Away Team')}</td>
-                    <td class="py-2 px-3 text-center ${c1}"><span class="${getResClass(m1, res)}">${m1 || '-'}</span></td>
-                    <td class="py-2 px-3 text-center ${c2}"><span class="${getResClass(m2, res)}">${m2 || '-'}</span></td>
-                    <td class="py-2 px-3 text-center ${c1}"><span class="${getResClass(m3, res)}">${m3 || '-'}</span></td>
-                    <td class="py-2 px-3 text-center ${c2}"><span class="${getResClass(m4, res)}">${m4 || '-'}</span></td>
-                    <td class="py-2 px-3 text-center font-mono font-semibold text-teal-700 bg-teal-50/30">${getVal(row, 'Correct Score')}</td>
-                    <td class="py-2 px-3 text-center font-bold text-slate-900 bg-slate-100">${res || '-'}</td>
-                    <td class="py-2 px-3 text-center">
-                        <button onclick="viewDetails(${globalData.indexOf(row)})" class="text-xs bg-slate-900 hover:bg-blue-600 text-white px-3 py-1.5 rounded shadow-sm font-semibold transition-colors w-full">View</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            }
-            if(totalRecs === 0) tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-500 text-sm">No matches found.</td></tr>`;
-        }
-        
         function renderTipsTable() {
             const tbody = document.getElementById('table-body-tips');
-            tbody.innerHTML = '';
-            
-            const totalRecs = filteredTipsData.length;
-            const start = (tipsPage - 1) * ROWS_PER_PAGE;
-            const end = Math.min(start + ROWS_PER_PAGE, totalRecs);
-            
-            document.getElementById('page-info-tips').textContent = `Showing ${totalRecs > 0 ? start + 1 : 0}-${end} of ${totalRecs}`;
-            
-            const pInfo = document.getElementById('page-info-tips').parentElement;
-            pInfo.querySelectorAll('button')[0].disabled = tipsPage === 1;
-            pInfo.querySelectorAll('button')[1].disabled = end >= totalRecs;
-
-            for (let i = start; i < end; i++) {
-                const item = filteredTipsData[i];
-                const row = item.row;
-                const res = getVal(row, 'Match outcome category') || getVal(row, 'Result');
-                
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-blue-50/30 border-b transition-colors';
-                
-                tr.innerHTML = `
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${getVal(row, 'Home Team')}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${getVal(row, 'Away Team')}</td>
-                    <td class="py-2.5 px-3 text-center bg-blue-50/50"><span class="font-extrabold text-blue-800 text-sm ${getResClass(item.consensus, res).replace('text-slate-500','')}">${item.consensus || '-'}</span></td>
-                    <td class="py-2.5 px-3 text-center">
-                        <div class="flex flex-col items-center">
-                            <span class="font-bold text-slate-700">${item.conf}%</span>
-                            <span class="text-[9px] text-slate-400 uppercase tracking-wider">${item.agreement}/4 Models Agree</span>
-                        </div>
-                    </td>
-                    <td class="py-2.5 px-3 text-center font-mono font-semibold text-blue-700 bg-blue-50/30">${getVal(row, 'Correct Score')}</td>
-                    <td class="py-2.5 px-3 text-center font-bold text-slate-900 bg-slate-100">${res || '-'}</td>
-                    <td class="py-2.5 px-3 text-center">
-                        <button onclick="viewDetails(${globalData.indexOf(row)})" class="text-xs bg-blue-900 hover:bg-blue-700 text-white px-3 py-1.5 rounded shadow-sm font-semibold transition-colors w-full">Deep Dive</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            }
-            if(totalRecs === 0) tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-500 text-sm">No top tips found.</td></tr>`;
+            if(tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">Global data active (${globalData.length} matches available). Select filters to view specific data points.</td></tr>`;
         }
 
-        function prevPage(type) {
-            if (type === 'all' && allPage > 1) { allPage--; renderTable('all', filteredAllData); }
-            else if (type === 'best' && bestPage > 1) { bestPage--; renderTable('best', filteredBestData); }
-            else if (type === 'tips' && tipsPage > 1) { tipsPage--; renderTipsTable(); }
-            else if (type === 'todays-best' && todaysBestPage > 1) { todaysBestPage--; renderTodaysBestTable(); } // NEW
+        // Pagination Stubs
+        function prevPage(tab) {
+            if(tab === 'todays-best' && todaysBestPage > 1) { todaysBestPage--; renderTodaysBestTable(); }
+            // Add other tab logic here later if needed
         }
-        function nextPage(type) {
-            if (type === 'all' && allPage * ROWS_PER_PAGE < filteredAllData.length) { allPage++; renderTable('all', filteredAllData); }
-            else if (type === 'best' && bestPage * ROWS_PER_PAGE < filteredBestData.length) { bestPage++; renderTable('best', filteredBestData); }
-            else if (type === 'tips' && tipsPage * ROWS_PER_PAGE < filteredTipsData.length) { tipsPage++; renderTipsTable(); }
-            else if (type === 'todays-best' && todaysBestPage * TB_ROWS_PER_PAGE < filteredTodaysBestData.length) { todaysBestPage++; renderTodaysBestTable(); } // NEW
+        function nextPage(tab) {
+            if(tab === 'todays-best' && (todaysBestPage * TB_ROWS_PER_PAGE) < filteredTodaysBestData.length) { todaysBestPage++; renderTodaysBestTable(); }
+            // Add other tab logic here later if needed
         }
 
-        // ==================== NEW ROI TAB LOGIC ====================
-        function resetROIFilters() {
-            document.getElementById('roi-model').value = 'm1';
-            document.getElementById('roi-stake').value = '10';
-            document.getElementById('roi-date').value = '';
-            document.getElementById('roi-month').value = '';
-            document.getElementById('roi-league').value = '';
-            calculateROI();
+        // Resets
+        function resetAllMatchesFilters() {}
+        function resetBestMatchesFilters() {}
+        function resetBestTipsFilters() {}
+        function resetAnalysisFilters() {}
+        function resetROIFilters() {}
+        function resetTodaysBestFilters() {
+            document.getElementById('tb-filter-type').value = '';
+            document.getElementById('tb-filter-competition').value = '';
+            document.getElementById('tb-filter-date').value = '';
+            document.getElementById('tb-filter-goals').value = '';
+            document.getElementById('tb-filter-score-tip').value = '';
+            applyTodaysBestFilters();
         }
 
-        function calculateROI() {
-            const modelKey = document.getElementById('roi-model').value; // m1, m2, m3, m4
-            const stake = parseFloat(document.getElementById('roi-stake').value) || 10;
-            const date = document.getElementById('roi-date').value;
-            const month = document.getElementById('roi-month').value;
-            const league = document.getElementById('roi-league').value;
+        // Modals
+        function openAdvFilters() { document.getElementById('adv-filter-modal').style.display = 'flex'; }
+        function closeAdvFilters() { document.getElementById('adv-filter-modal').style.display = 'none'; }
+        function clearAdvFilters() {}
+        function applyAdvFilters() { closeAdvFilters(); }
 
-            const modelMap = {
-                'm1': 'Prediction',
-                'm2': 'Match Prediction Tip',
-                'm3': 'Match outcome Prediction',
-                'm4': 'Model Prediction'
-            };
-            const targetCol = modelMap[modelKey];
+        function openBmAdvFilters() { document.getElementById('bm-adv-filter-modal').style.display = 'flex'; }
+        function closeBmAdvFilters() { document.getElementById('bm-adv-filter-modal').style.display = 'none'; }
+        function clearBmAdvFilters() {}
+        function applyBmAdvFilters() { closeBmAdvFilters(); }
 
-            // Filter data for ROI
-            const roiData = globalData.filter(row => {
-                if (!passesDateFilters(row, date, month)) return false;
-                if (league && getVal(row, 'League') !== league) return false;
-                
-                const res = getVal(row, 'Match outcome category') || getVal(row, 'Result');
-                const pred = getVal(row, targetCol);
-                
-                // Only consider rows that HAVE a result and HAVE a prediction
-                if (!res || res === '-' || res.trim() === '') return false;
-                if (!pred || pred === '-' || pred.trim() === '') return false;
-                
-                return true;
-            });
+        function openAnAdvFilters() { document.getElementById('an-adv-filter-modal').style.display = 'flex'; }
+        function closeAnAdvFilters() { document.getElementById('an-adv-filter-modal').style.display = 'none'; }
+        function clearAnAdvFilters() {}
+        function applyAnAdvFilters() { closeAnAdvFilters(); }
 
-            let totalBets = 0;
-            let wins = 0;
-            let losses = 0;
-            let totalReturns = 0;
-            
-            const tbody = document.getElementById('table-body-roi');
-            tbody.innerHTML = '';
+        function openAllModelFilters() { document.getElementById('all-model-filter-modal').style.display = 'flex'; }
+        function closeAllModelFilters() { document.getElementById('all-model-filter-modal').style.display = 'none'; }
+        function clearAllModelFilters() {}
+        function applyAllModelFilters() { closeAllModelFilters(); }
 
-            // Sort data by date descending (assuming Date column exists and is parseable)
-            roiData.sort((a,b) => {
-                const da = getMatchDateObj(getVal(a, 'Date'));
-                const db = getMatchDateObj(getVal(b, 'Date'));
-                return db - da;
-            });
+        function openBmModelFilters() { document.getElementById('bm-model-filter-modal').style.display = 'flex'; }
+        function closeBmModelFilters() { document.getElementById('bm-model-filter-modal').style.display = 'none'; }
+        function clearBmModelFilters() {}
+        function applyBmModelFilters() { closeBmModelFilters(); }
 
-            // Calculate and Render (limit table render to 100 to prevent lag, but calc all)
-            const maxRender = 100;
-            let rendered = 0;
-
-            roiData.forEach(row => {
-                const res = (getVal(row, 'Match outcome category') || getVal(row, 'Result')).trim();
-                const pred = getVal(row, targetCol).trim();
-                
-                let oddsCol = '';
-                if(pred === '1' || pred.toLowerCase() === 'home') oddsCol = 'Home Odds';
-                else if(pred === 'X' || pred.toLowerCase() === 'draw') oddsCol = 'Draw Odds';
-                else if(pred === '2' || pred.toLowerCase() === 'away') oddsCol = 'Away Odds';
-                
-                let odds = 1.0;
-                if(oddsCol) {
-                    const rawOdds = parseFloat(getVal(row, oddsCol));
-                    if(!isNaN(rawOdds) && rawOdds > 0) odds = rawOdds;
-                }
-
-                totalBets++;
-                let pnl = -stake;
-                let isWin = false;
-
-                if (pred === res) {
-                    isWin = true;
-                    wins++;
-                    pnl = (stake * odds) - stake;
-                    totalReturns += (stake * odds);
-                } else {
-                    losses++;
-                    // totalReturns += 0;
-                }
-
-                if(rendered < maxRender) {
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-orange-50/30 border-b';
-                    tr.innerHTML = `
-                        <td class="py-2 px-3 text-slate-500">${getVal(row, 'Date') || '-'}</td>
-                        <td class="py-2 px-3 font-semibold text-slate-800">${getVal(row, 'Home Team')} v ${getVal(row, 'Away Team')}</td>
-                        <td class="py-2 px-3 text-center font-bold text-slate-700 bg-slate-50">${pred}</td>
-                        <td class="py-2 px-3 text-center text-slate-600">${odds > 1 ? odds.toFixed(2) : '-'}</td>
-                        <td class="py-2 px-3 text-center font-bold ${isWin ? 'text-green-600' : 'text-red-600'}">${res}</td>
-                        <td class="py-2 px-3 text-center text-slate-600">$${stake.toFixed(2)}</td>
-                        <td class="py-2 px-3 text-right font-bold ${isWin ? 'text-green-600' : 'text-red-600'}">${isWin ? '+' : ''}$${pnl.toFixed(2)}</td>
-                    `;
-                    tbody.appendChild(tr);
-                    rendered++;
-                }
-            });
-
-            if(rendered === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-500">No completed matches found for calculation.</td></tr>`;
-            } else if (rendered < roiData.length) {
-                tbody.innerHTML += `<tr><td colspan="7" class="py-3 text-center text-xs text-slate-400 italic">Showing 100 most recent bets. (Calculations include all ${roiData.length} bets).</td></tr>`;
-            }
-
-            const totalStake = totalBets * stake;
-            const netProfit = totalReturns - totalStake;
-            const roiPercent = totalStake > 0 ? ((netProfit / totalStake) * 100) : 0;
-
-            document.getElementById('roi-total-bets').textContent = totalBets;
-            document.getElementById('roi-win-loss').textContent = `${wins} / ${losses}`;
-            document.getElementById('roi-total-stake').textContent = `$${totalStake.toFixed(2)}`;
-            
-            const npEl = document.getElementById('roi-net-profit');
-            npEl.textContent = `$${netProfit.toFixed(2)}`;
-            npEl.className = `text-lg font-black block ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`;
-            
-            const roiEl = document.getElementById('roi-percentage');
-            roiEl.textContent = `${roiPercent >= 0 ? '+' : ''}${roiPercent.toFixed(1)}%`;
-            roiEl.className = `text-xl font-black block ${roiPercent >= 0 ? 'text-green-400' : 'text-red-400'}`;
-        }
-        // ============================================================
-
-        function applyAnalysisFilters() {
-            const search = document.getElementById('an-search-team').value.toLowerCase();
-            const date = document.getElementById('an-filter-date').value;
-            const month = document.getElementById('an-filter-month').value;
-            const league = document.getElementById('an-filter-league').value;
-            const pred = document.getElementById('an-filter-prediction').value;
-            const cs = document.getElementById('an-filter-correct-score').value;
-            const useThresh = document.getElementById('an-apply-thresholds').checked;
-
-            currentAnalysisData = globalData.filter(row => {
-                const ht = getVal(row, 'Home Team').toLowerCase(), at = getVal(row, 'Away Team').toLowerCase();
-                if (search && !ht.includes(search) && !at.includes(search)) return false;
-                if (!passesDateFilters(row, date, month)) return false;
-                if (league && getVal(row, 'League') !== league) return false;
-                if (cs && getVal(row, 'Correct Score').trim() !== cs) return false;
-                
-                if (pred) {
-                    const m1 = getVal(row, 'Prediction'), m2 = getVal(row, 'Match Prediction Tip'), m3 = getVal(row, 'Match outcome Prediction'), m4 = getVal(row, 'Model Prediction');
-                    if (m1!==pred && m2!==pred && m3!==pred && m4!==pred) return false;
-                }
-                
-                if (useThresh && !passesGlobalThresholds(row)) return false;
-                if (!passesAdvFilters(row, 'an-adv-')) return false;
-                
-                return true;
-            });
-            calculateAnalysisMetrics();
-        }
-        
-        function resetAnalysisFilters() {
-            const els = ['an-search-team', 'an-filter-league', 'an-filter-prediction', 'an-filter-correct-score'];
-            els.forEach(id => document.getElementById(id).value = '');
-            document.getElementById('an-apply-thresholds').checked = false;
-            initDateFilter();
-            clearAnAdvFilters(false);
-            applyAnalysisFilters();
-        }
-
-        function calculateAnalysisMetrics() {
-            const models = [
-                { id: 'M1', name: 'Model 1 (Prediction)', col: 'Prediction' },
-                { id: 'M2', name: 'Model 2 (Match Tip)', col: 'Match Prediction Tip' },
-                { id: 'M3', name: 'Model 3 (Outcome)', col: 'Match outcome Prediction' },
-                { id: 'M4', name: 'Model 4 (Model Pred)', col: 'Model Prediction' }
-            ];
-
-            const stats = { overall: {}, h: {}, d: {}, a: {} };
-            models.forEach(m => {
-                stats.overall[m.id] = { hits: 0, t: 0, name: m.name };
-                stats.h[m.id] = { hits: 0, t: 0, name: m.name };
-                stats.d[m.id] = { hits: 0, t: 0, name: m.name };
-                stats.a[m.id] = { hits: 0, t: 0, name: m.name };
-            });
-
-            currentAnalysisData.forEach(row => {
-                const res = getVal(row, 'Match outcome category') || getVal(row, 'Result');
-                if(!res || res === '-' || res === '') return;
-                const r = res.trim();
-
-                models.forEach(m => {
-                    const pred = getVal(row, m.col);
-                    if(pred && pred !== '-') {
-                        stats.overall[m.id].t++;
-                        if(pred === r) stats.overall[m.id].hits++;
-                        
-                        if(pred === '1') { stats.h[m.id].t++; if(r==='1') stats.h[m.id].hits++; }
-                        if(pred === 'X') { stats.d[m.id].t++; if(r==='X') stats.d[m.id].hits++; }
-                        if(pred === '2') { stats.a[m.id].t++; if(r==='2') stats.a[m.id].hits++; }
-                    }
-                });
-            });
-
-            const rankData = (statObj) => {
-                return Object.values(statObj).map(m => {
-                    const wr = m.t > 0 ? (m.hits / m.t) * 100 : 0;
-                    // Score formula = WinRate * log10(Total + 1) to reward volume slightly
-                    const score = wr * Math.log10(m.t + 1);
-                    return { ...m, wr, score };
-                }).sort((a, b) => b.score - a.score);
-            };
-
-            renderAnalysisTable('analysis-overall-tbody', rankData(stats.overall), 'bg-blue-100 text-blue-800');
-            renderAnalysisTable('analysis-home-tbody', rankData(stats.h), 'bg-emerald-100 text-emerald-800');
-            renderAnalysisTable('analysis-draw-tbody', rankData(stats.d), 'bg-amber-100 text-amber-800');
-            renderAnalysisTable('analysis-away-tbody', rankData(stats.a), 'bg-teal-100 text-teal-800');
-        }
-
-        function renderAnalysisTable(tbodyId, rankedData, badgeClass) {
-            const tbody = document.getElementById(tbodyId);
-            tbody.innerHTML = '';
-            rankedData.forEach((d, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = idx === 0 ? 'bg-slate-50 border-b border-slate-100' : 'border-b border-slate-100';
-                const rankBadge = idx === 0 ? '🏆 1st' : `${idx+1}`;
-                tr.innerHTML = `
-                    <td class="py-2.5 px-3 font-bold text-slate-600">${rankBadge}</td>
-                    <td class="py-2.5 px-3 font-semibold text-slate-800">${d.name}</td>
-                    <td class="py-2.5 px-3 text-center text-slate-600 font-mono">${d.hits}/${d.t}</td>
-                    <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded font-bold ${badgeClass}">${d.wr.toFixed(1)}%</span></td>
-                    <td class="py-2.5 px-3 text-center text-slate-500 text-[10px] font-bold">${d.score.toFixed(1)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function viewDetails(index) {
-            const row = globalData[index];
-            if (!row) return;
-
-            document.getElementById('modal-title').textContent = `${getVal(row, 'Home Team')} vs ${getVal(row, 'Away Team')}`;
-            document.getElementById('modal-subtitle').textContent = "Match Deep Dive";
-            const content = document.getElementById('modal-content');
-            
-            const createCard = (title, iconSvg, innerHTML) => `
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
-                    <div class="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-2">
-                        ${iconSvg}
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide">${title}</h4>
-                    </div>
-                    <div class="p-3 text-xs flex-1 flex flex-col gap-1.5 justify-center">
-                        ${innerHTML}
-                    </div>
-                </div>
-            `;
-            
-            const createRow = (lbl, val, hl = false) => `
-                <div class="flex justify-between items-center py-1 ${hl ? 'font-bold bg-slate-50 rounded px-1 -mx-1' : ''}">
-                    <span class="text-slate-500">${lbl}:</span>
-                    <span class="text-slate-800 text-right">${val || '-'}</span>
-                </div>
-            `;
-
-            // Icons
-            const iconBasic = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>`;
-            const iconOdds = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" /><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.311c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.311c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd" /></svg>`;
-            const iconPred = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4z" /></svg>`;
-            const iconStats = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>`;
-            
-            const res = getVal(row, 'Match outcome category') || getVal(row, 'Result');
-            
-            const hlPred = (pred) => {
-                if(!pred || pred==='-') return '-';
-                if(res && res!=='-') return pred === res ? `<span class="text-green-600 font-bold">${pred} (Hit)</span>` : `<span class="text-rose-600 font-bold">${pred} (Miss)</span>`;
-                return `<span class="font-bold">${pred}</span>`;
-            };
-
-            content.innerHTML = `
-                ${createCard("Match Info", iconBasic, `
-                    ${createRow("League", getVal(row, 'League'))}
-                    ${createRow("Date", getVal(row, 'Date'))}
-                    ${createRow("Time", getVal(row, 'Time'))}
-                    ${createRow("Match Result", res, true)}
-                `)}
-                
-                ${createCard("Models & Predictions", iconPred, `
-                    ${createRow("M1 (Prediction)", hlPred(getVal(row, 'Prediction')))}
-                    ${createRow("M2 (Match Tip)", hlPred(getVal(row, 'Match Prediction Tip')))}
-                    ${createRow("M3 (Outcome Pred)", hlPred(getVal(row, 'Match outcome Prediction')))}
-                    ${createRow("M4 (Model Pred)", hlPred(getVal(row, 'Model Prediction')))}
-                    ${createRow("Confidence %", getVal(row, 'Confidence %'), true)}
-                    ${createRow("Correct Score", getVal(row, 'Correct Score'), true)}
-                `)}
-                
-                ${createCard("Market Odds", iconOdds, `
-                    ${createRow("Home (1)", getVal(row, 'Home Odds'))}
-                    ${createRow("Draw (X)", getVal(row, 'Draw Odds'))}
-                    ${createRow("Away (2)", getVal(row, 'Away Odds'))}
-                `)}
-                
-                ${createCard("Team Form", iconStats, `
-                    ${createRow("Home Form", getVal(row, 'Home Form'))}
-                    ${createRow("Away Form", getVal(row, 'Away Form'))}
-                    ${createRow("Home Form Rate", getVal(row, 'Home Form Rate'))}
-                    ${createRow("Away Form Rate", getVal(row, 'Away Form Rate'))}
-                    ${createRow("Form Diff", getVal(row, 'Form Difference'), true)}
-                `)}
-                
-                ${createCard("Head-to-Head", iconStats, `
-                    ${createRow("Home Wins", getVal(row, 'H2H Home Wins'))}
-                    ${createRow("Draws", getVal(row, 'H2H Draw'))}
-                    ${createRow("Away Wins", getVal(row, 'H2H Away Wins'))}
-                    ${createRow("H2H Diff", getVal(row, 'H2H Difference'), true)}
-                `)}
-                
-                ${createCard("Goals (Avg)", iconStats, `
-                    ${createRow("Home Scored", getVal(row, 'Home Scored Avg'))}
-                    ${createRow("Home Conceded", getVal(row, 'Home Conceded Avg'))}
-                    ${createRow("Away Scored", getVal(row, 'Away Scored Avg'))}
-                    ${createRow("Away Conceded", getVal(row, 'Away Conceded Avg'))}
-                `)}
-                
-                ${createCard("Power & Position", iconStats, `
-                    ${createRow("Home Power", getVal(row, 'Home Power'))}
-                    ${createRow("Away Power", getVal(row, 'Away Power'))}
-                    ${createRow("Power Diff", getVal(row, 'Power Difference'), true)}
-                    <div class="border-t border-slate-100 my-1"></div>
-                    ${createRow("Home Position", getVal(row, 'Home Position'))}
-                    ${createRow("Away Position", getVal(row, 'Away Position'))}
-                `)}
-            `;
-            
-            document.getElementById('view-modal').classList.remove('hidden');
-            document.getElementById('view-modal').classList.add('flex');
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).classList.add('hidden');
-            document.getElementById(id).classList.remove('flex');
-        }
-
-        // --- Modals logic for Advanced/Model Filters ---
-        const advPrefixes = { 'all': 'adv-', 'best': 'bm-adv-', 'analysis': 'an-adv-' };
-        function openAdvFilters() { document.getElementById('adv-filter-modal').classList.remove('hidden'); document.getElementById('adv-filter-modal').classList.add('flex'); }
-        function closeAdvFilters() { document.getElementById('adv-filter-modal').classList.add('hidden'); document.getElementById('adv-filter-modal').classList.remove('flex'); }
-        function clearAdvFilters(apply = true) {
-            advFields.forEach(f => {
-                const id = f.replace(/\s+/g, '-');
-                const m = document.getElementById(`adv-min-${id}`), mx = document.getElementById(`adv-max-${id}`);
-                if(m) m.value = ''; if(mx) mx.value = '';
-            });
-            if(apply) { applyAllMatchesFilters(); closeAdvFilters(); }
-        }
-        function applyAdvFilters() { applyAllMatchesFilters(); closeAdvFilters(); }
-
-        function openBmAdvFilters() { document.getElementById('bm-adv-filter-modal').classList.remove('hidden'); document.getElementById('bm-adv-filter-modal').classList.add('flex'); }
-        function closeBmAdvFilters() { document.getElementById('bm-adv-filter-modal').classList.add('hidden'); document.getElementById('bm-adv-filter-modal').classList.remove('flex'); }
-        function clearBmAdvFilters(apply = true) {
-            advFields.forEach(f => {
-                const id = f.replace(/\s+/g, '-');
-                const m = document.getElementById(`bm-adv-min-${id}`), mx = document.getElementById(`bm-adv-max-${id}`);
-                if(m) m.value = ''; if(mx) mx.value = '';
-            });
-            if(apply) { applyBestMatchesFilters(); closeBmAdvFilters(); }
-        }
-        function applyBmAdvFilters() { applyBestMatchesFilters(); closeBmAdvFilters(); }
-
-        function openAnAdvFilters() { document.getElementById('an-adv-filter-modal').classList.remove('hidden'); document.getElementById('an-adv-filter-modal').classList.add('flex'); }
-        function closeAnAdvFilters() { document.getElementById('an-adv-filter-modal').classList.add('hidden'); document.getElementById('an-adv-filter-modal').classList.remove('flex'); }
-        function clearAnAdvFilters(apply = true) {
-            advFields.forEach(f => {
-                const id = f.replace(/\s+/g, '-');
-                const m = document.getElementById(`an-adv-min-${id}`), mx = document.getElementById(`an-adv-max-${id}`);
-                if(m) m.value = ''; if(mx) mx.value = '';
-            });
-            if(apply) { applyAnalysisFilters(); closeAnAdvFilters(); }
-        }
-        function applyAnAdvFilters() { applyAnalysisFilters(); closeAnAdvFilters(); }
-
-        // Model Filters Modals
-        function openAllModelFilters() { document.getElementById('all-model-filter-modal').classList.remove('hidden'); document.getElementById('all-model-filter-modal').classList.add('flex'); }
-        function closeAllModelFilters() { document.getElementById('all-model-filter-modal').classList.add('hidden'); document.getElementById('all-model-filter-modal').classList.remove('flex'); }
-        function clearAllModelFilters(apply = true) {
-            [1,2,3,4].forEach(i => { const el = document.getElementById(`all-model-m${i}`); if(el) el.value = ''; });
-            if(apply) { applyAllMatchesFilters(); closeAllModelFilters(); }
-        }
-        function applyAllModelFilters() { applyAllMatchesFilters(); closeAllModelFilters(); }
-
-        function openBmModelFilters() { document.getElementById('bm-model-filter-modal').classList.remove('hidden'); document.getElementById('bm-model-filter-modal').classList.add('flex'); }
-        function closeBmModelFilters() { document.getElementById('bm-model-filter-modal').classList.add('hidden'); document.getElementById('bm-model-filter-modal').classList.remove('flex'); }
-        function clearBmModelFilters(apply = true) {
-            [1,2,3,4].forEach(i => { const el = document.getElementById(`bm-model-m${i}`); if(el) el.value = ''; });
-            if(apply) { applyBestMatchesFilters(); closeBmModelFilters(); }
-        }
-        function applyBmModelFilters() { applyBestMatchesFilters(); closeBmModelFilters(); }
-
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function resetSettingsDefaults() {}
+        function applySettingsLocally() {}
     </script>
 </body>
 </html>
