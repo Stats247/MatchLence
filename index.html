@@ -128,7 +128,9 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Date</label>
-                            <input type="date" id="filter-date" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                            <select id="filter-date" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                                <option value="">All Dates</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Month</label>
@@ -249,7 +251,9 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block font-semibold text-emerald-900 mb-1">Date</label>
-                            <input type="date" id="bm-filter-date" class="w-full border border-emerald-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-emerald-500 text-xs bg-emerald-50/30" onchange="applyBestMatchesFilters()">
+                            <select id="bm-filter-date" class="w-full border border-emerald-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-emerald-500 text-xs bg-emerald-50/30" onchange="applyBestMatchesFilters()">
+                                <option value="">All Dates</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block font-semibold text-emerald-900 mb-1">Month</label>
@@ -354,7 +358,9 @@
                    <div class="grid grid-cols-2 gap-2">
                        <div>
                            <label class="block font-semibold text-blue-900 mb-1">Date</label>
-                           <input type="date" id="bt-filter-date" class="w-full border border-blue-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-blue-50/30" onchange="applyBestTipsFilters()">
+                           <select id="bt-filter-date" class="w-full border border-blue-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-blue-50/30" onchange="applyBestTipsFilters()">
+                               <option value="">All Dates</option>
+                           </select>
                        </div>
                        <div>
                            <label class="block font-semibold text-blue-900 mb-1">Month</label>
@@ -660,15 +666,15 @@
                     if (r.length < 2 || r.every(cell => !cell.trim())) continue;
 
                     let match = {
-                        date: idxDate !== -1 ? (r[idxDate] || '') : '',
-                        league: idxLeague !== -1 ? (r[idxLeague] || 'Unknown League') : 'Unknown League',
-                        home: idxHome !== -1 ? (r[idxHome] || 'Home Team') : (r[0] || 'Home Team'),
-                        away: idxAway !== -1 ? (r[idxAway] || 'Away Team') : (r[1] || 'Away Team'),
-                        targetPick: idxTargetPick !== -1 ? (r[idxTargetPick] || '-') : '-',
-                        confidence: idxConfidence !== -1 ? (r[idxConfidence] || '-') : '-',
-                        modelConfidence: idxModelConfidence !== -1 ? (r[idxModelConfidence] || '-') : '-',
-                        score: idxScore !== -1 ? (r[idxScore] || '-') : '-',
-                        result: idxResult !== -1 ? (r[idxResult] || '-') : '-',
+                        date: idxDate !== -1 ? (r[idxDate] || '').trim() : '',
+                        league: idxLeague !== -1 ? (r[idxLeague] || 'Unknown League').trim() : 'Unknown League',
+                        home: idxHome !== -1 ? (r[idxHome] || 'Home Team').trim() : (r[0] || 'Home Team').trim(),
+                        away: idxAway !== -1 ? (r[idxAway] || 'Away Team').trim() : (r[1] || 'Away Team').trim(),
+                        targetPick: idxTargetPick !== -1 ? (r[idxTargetPick] || '-').trim() : '-',
+                        confidence: idxConfidence !== -1 ? (r[idxConfidence] || '-').trim() : '-',
+                        modelConfidence: idxModelConfidence !== -1 ? (r[idxModelConfidence] || '-').trim() : '-',
+                        score: idxScore !== -1 ? (r[idxScore] || '-').trim() : '-',
+                        result: idxResult !== -1 ? (r[idxResult] || '-').trim() : '-',
                         homeForm: idxHomeForm !== -1 ? parseFloat(r[idxHomeForm]) || 0 : 0,
                         awayForm: idxAwayForm !== -1 ? parseFloat(r[idxAwayForm]) || 0 : 0
                     };
@@ -694,9 +700,9 @@
         function loadSampleData() {
             appState.matches = [
                 { date: '2026-10-10', league: 'Premier League', home: 'Arsenal', away: 'Chelsea', targetPick: '1', confidence: '82%', modelConfidence: '88%', score: '2-1', result: '1', homeForm: 85, awayForm: 70 },
-                { date: '2026-10-10', league: 'La Liga', home: 'Real Madrid', away: 'Barcelona', targetPick: '2', confidence: '85%', modelConfidence: '91%', score: '1-2', result: '2', homeForm: 78, awayForm: 88 },
-                { date: '2026-10-11', league: 'Serie A', home: 'Inter Milan', away: 'Juventus', targetPick: '1', confidence: '80%', modelConfidence: '85%', score: '2-0', result: '1', homeForm: 90, awayForm: 65 },
-                { date: '2026-10-11', league: 'Bundesliga', home: 'Bayern Munich', away: 'Dortmund', targetPick: '1', confidence: '87%', modelConfidence: '89%', score: '3-1', result: '1', homeForm: 82, awayForm: 75 }
+                { date: '2026-10-11', league: 'La Liga', home: 'Real Madrid', away: 'Barcelona', targetPick: '2', confidence: '85%', modelConfidence: '91%', score: '1-2', result: '2', homeForm: 78, awayForm: 88 },
+                { date: '2026-10-09', league: 'Serie A', home: 'Inter Milan', away: 'Juventus', targetPick: '1', confidence: '80%', modelConfidence: '85%', score: '2-0', result: '1', homeForm: 90, awayForm: 65 },
+                { date: '2026-10-12', league: 'Bundesliga', home: 'Bayern Munich', away: 'Dortmund', targetPick: '1', confidence: '87%', modelConfidence: '89%', score: '3-1', result: '1', homeForm: 82, awayForm: 75 }
             ];
             populateFilterDropdowns();
             applyAllMatchesFilters();
@@ -736,6 +742,25 @@
             let leagues = [...new Set(appState.matches.map(m => m.league))].filter(Boolean).sort();
             let predictions = [...new Set(appState.matches.map(m => m.modelPrediction))].filter(p => p && p !== '-').sort();
             let scores = [...new Set(appState.matches.map(m => m.score))].filter(s => s && s !== '-').sort();
+            
+            // Extract unique dates and sort with newest date at the top (descending order)
+            let dates = [...new Set(appState.matches.map(m => m.date))].filter(Boolean).sort((a, b) => {
+                let timeA = new Date(a).getTime();
+                let timeB = new Date(b).getTime();
+                if (!isNaN(timeA) && !isNaN(timeB)) {
+                    return timeB - timeA; // Newest first
+                }
+                return b.localeCompare(a);
+            });
+
+            // Populate date dropdowns across tabs
+            ['filter-date', 'bm-filter-date', 'bt-filter-date'].forEach(id => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                let cur = el.value;
+                el.innerHTML = '<option value="">All Dates</option>' + dates.map(d => `<option value="${d}">${d}</option>`).join('');
+                el.value = cur;
+            });
 
             ['filter-league', 'bm-filter-league', 'bt-filter-league'].forEach(id => {
                 let el = document.getElementById(id);
