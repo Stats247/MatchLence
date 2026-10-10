@@ -1,1127 +1,1178 @@
-const end = Math.min(start + TB_ROWS_PER_PAGE, filteredTodaysBestData.length);
-            
-            if (filteredTodaysBestData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500 font-semibold bg-pink-50/50">No matches found matching criteria.</td></tr>`;
-                document.getElementById('page-info-todays-best').innerText = 'Showing 0-0 of 0';
-                return;
-            }
-
-            for (let i = start; i < end; i++) {
-                const row = filteredTodaysBestData[i];
-                const date = getTbVal(row, 'Match Date');
-                const home = getTbVal(row, 'Home Team');
-                const away = getTbVal(row, 'Away Team');
-                const odds1 = getTbVal(row, '1') || '-';
-                const oddsX = getTbVal(row, 'X') || '-';
-                const odds2 = getTbVal(row, '2') || '-';
-                const conf = getTbVal(row, 'Prediction Confidence');
-                const scoreTip = getTbVal(row, 'Score Tip');
-                const result = getTbVal(row, 'Match Result');
-                
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-pink-50 transition-colors border-b border-slate-100 last:border-none cursor-pointer';
-                tr.onclick = () => viewTodaysBestDetails(i);
-
-                const renderOddsCell = (val) => `<td class="py-2.5 px-3 text-center border-x border-slate-50"><span class="bg-slate-100 font-medium px-2 py-0.5 rounded text-[11px]">${val}</span></td>`;
-                
-                // Colorize score tip and result based on win/loss
-                const predictedOutcome = determinePredictionOutcome(scoreTip);
-                const wlStatus = checkWinLoss(predictedOutcome, result);
-                
-                let resultClass = "font-bold text-slate-700";
-                let tipClass = "font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded";
-                
-                if (wlStatus === 'Won') {
-                    resultClass = "font-bold text-green-600";
-                    tipClass = "font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded";
-                } else if (wlStatus === 'Lost') {
-                    resultClass = "font-bold text-red-600";
-                    tipClass = "font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded";
-                }
-
-                tr.innerHTML = `
-                    <td class="py-2.5 px-3.5 whitespace-nowrap text-slate-500 font-medium">${date}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${home}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${away}</td>
-                    ${renderOddsCell(odds1)}
-                    ${renderOddsCell(oddsX)}
-                    ${renderOddsCell(odds2)}
-                    <td class="py-2.5 px-3 text-center"><span class="font-bold text-slate-700">${conf}</span></td>
-                    <td class="py-2.5 px-3 text-center bg-pink-50/50"><span class="${tipClass}">${scoreTip || '-'}</span></td>
-                    <td class="py-2.5 px-3 text-center bg-pink-50/50"><span class="${resultClass}">${result || '-'}</span></td>
-                `;
-                tbody.appendChild(tr);
-            }
-
-            document.getElementById('page-info-todays-best').innerText = `Showing ${start + 1}-${end} of ${filteredTodaysBestData.length}`;
-            
-            const btnPrev = document.querySelector('button[onclick="nextPage(\'todays-best\')"]').previousElementSibling;
-            const btnNext = document.querySelector('button[onclick="nextPage(\'todays-best\')"]');
-            btnPrev.disabled = todaysBestPage === 1;
-            btnNext.disabled = end >= filteredTodaysBestData.length;
-        }
-
-        function resetTodaysBestFilters() {
-            document.getElementById('tb-filter-type').value = '';
-            document.getElementById('tb-filter-competition').value = '';
-            document.getElementById('tb-filter-date').value = '';
-            document.getElementById('tb-filter-goals').value = '';
-            document.getElementById('tb-filter-score-tip').value = '';
-            applyTodaysBestFilters();
-        }
-
-        function viewTodaysBestDetails(index) {
-            const row = filteredTodaysBestData[index];
-            if (!row) return;
-
-            document.getElementById('modal-subtitle').innerText = "Today's Best Detailed View";
-            document.getElementById('modal-title').innerText = `${getTbVal(row, 'Home Team')} vs ${getTbVal(row, 'Away Team')}`;
-
-            const content = document.getElementById('modal-content');
-            content.innerHTML = '';
-
-            const cols = Object.keys(tbHeaderMap);
-            
-            // Group logical sections
-            const matchInfo = ['match date', 'match time', 'competition', 'match type', 'home team', 'away team', 'match result'];
-            const oddsInfo = ['1', 'x', '2', 'u2.5', 'o2.5', 'btts yes', 'btts no'];
-            const predictions = ['goals prediction', 'score tip', 'prediction confidence', 'btts prediction', 'ht/ft prediction'];
-
-            const renderGroup = (title, keys) => {
-                let html = `<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-800 border-b pb-2 mb-3 text-xs uppercase tracking-wider">${title}</h4><div class="space-y-2">`;
-                keys.forEach(k => {
-                    const val = getTbVal(row, k);
-                    if (val) {
-                         const displayKey = k.replace(/\b\w/g, l => l.toUpperCase()); // simple title case
-                         html += `<div class="flex justify-between items-center text-xs"><span class="text-slate-500 font-medium">${displayKey}</span><span class="font-bold text-slate-800 text-right">${val}</span></div>`;
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataCompass360 - Match Prediction & Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandNavy: '#0f172a',
+                        brandBlue: '#1e3a8a',
+                        brandAccentBlue: '#2563eb',
+                        brandTeal: '#0f766e',
+                        brandGreen: '#15803d',
+                        brandOrange: '#ea580c'
                     }
-                });
-                html += `</div></div>`;
-                return html;
-            };
-
-            content.innerHTML += renderGroup("Match Information", matchInfo);
-            content.innerHTML += renderGroup("Odds & Betting", oddsInfo);
-            content.innerHTML += renderGroup("Predictions & Tips", predictions);
-
-            document.getElementById('view-modal').classList.remove('hidden');
-            document.getElementById('view-modal').classList.add('flex');
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .tab-btn.active { 
+            border-bottom: 3px solid #2563eb; 
+            color: #1e3a8a; 
+            font-weight: 700; 
+            background-color: #f8fafc;
         }
 
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        // ==================== ORIGINAL APPLICATION LOGIC ====================
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeInUp 0.2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-full flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+    <div id="loader" class="fixed inset-0 bg-slate-900/80 z-[100] flex flex-col justify-center items-center backdrop-blur-md transition-all">
+        <div class="relative flex items-center justify-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-4 border-teal-400 border-t-blue-600"></div>
+            <div class="absolute text-xs font-bold text-white tracking-tighter">360</div>
+        </div>
+        <span class="text-white font-semibold tracking-wider mt-4 text-sm bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-700 shadow-xl">Loading DataCompass360 & Syncing Matches...</span>
+    </div>
+
+    <div id="error-message" class="hidden bg-rose-600 text-white text-center py-2 px-4 font-semibold text-sm shadow-md z-40 flex justify-between items-center">
+        <span id="error-text" class="mx-auto"></span>
+        <button onclick="hideError()" class="text-white hover:text-slate-200 font-bold px-3">&times;</button>
+    </div>
+
+    <header class="bg-slate-900 text-white shadow-md px-4 lg:px-6 py-3 flex flex-wrap justify-between items-center z-25 shrink-0 border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-blue-700 to-teal-500 p-2 rounded-xl shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-1">
+                    DataCompass<span class="text-teal-400">360</span>
+                </h1>
+                <p class="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Match Analytics & Prediction Platform</p>
+            </div>
+        </div>
+        
+        <nav class="flex space-x-1 mt-2 sm:mt-0 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 overflow-x-auto max-w-full">
+            <button onclick="switchTab('all-matches')" id="tab-all-matches" class="tab-btn active px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none whitespace-nowrap">All Matches</button>
+            <button onclick="switchTab('best-matches')" id="tab-best-matches" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-amber-400" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                Best Matches
+            </button>
+            <button onclick="switchTab('best-tips')" id="tab-best-tips" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5 whitespace-nowrap">
+               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+               Best Tips
+           </button>
+           <button onclick="switchTab('analysis')" id="tab-analysis" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none whitespace-nowrap">Analysis</button>
+           <button onclick="switchTab('roi')" id="tab-roi" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5 whitespace-nowrap">
+               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+               ROI
+           </button>
+           <button onclick="switchTab('todays-best')" id="tab-todays-best" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1.5 whitespace-nowrap">
+               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+               Todays Best
+           </button>
+           <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition-all outline-none flex items-center gap-1 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Settings
+            </button>
+        </nav>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col lg:flex-row w-full max-w-[1920px] mx-auto p-3 lg:p-4 gap-4">
+
+        <!-- ==================== ALL MATCHES TAB ==================== -->
+        <div id="content-all-matches" class="flex flex-col lg:flex-row w-full h-full gap-4">
+            <aside class="w-full lg:w-72 xl:w-80 bg-white rounded-2xl shadow-sm border border-slate-200/80 flex flex-col shrink-0 overflow-hidden">
+                <div class="bg-slate-900 text-white p-3.5 border-b border-slate-800 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Filter Matches</h2>
+                    </div>
+                    <button onclick="resetAllMatchesFilters()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold px-2.5 py-1 rounded-md transition-colors border border-slate-700">Reset All</button>
+                </div>
+                <div class="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Search Team</label>
+                        <div class="relative">
+                            <input type="text" id="search-team" placeholder="e.g. Arsenal..." class="w-full border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onkeyup="applyAllMatchesFilters()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-2.5 top-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Date</label>
+                            <input type="date" id="filter-date" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Month</label>
+                            <select id="filter-month" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                                <option value="">All Months</option>
+                                <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                                <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                                <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                                <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">League</label>
+                        <select id="filter-league" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                            <option value="">All Leagues</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Main Prediction</label>
+                        <select id="filter-prediction" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                            <option value="">All Predictions</option>
+                        </select>
+                    </div>
+                    <div class="bg-teal-50/60 p-2.5 rounded-xl border border-teal-200">
+                        <label class="block font-bold text-teal-900 mb-1 flex items-center justify-between">
+                            <span>Correct Score</span>
+                            <span class="text-[10px] text-teal-600 bg-teal-100/80 px-1.5 py-0.5 rounded">Dynamic</span>
+                        </label>
+                        <select id="filter-correct-score" class="w-full border border-teal-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-teal-500 text-xs bg-white font-semibold text-teal-900" onchange="applyAllMatchesFilters()">
+                            <option value="">All Correct Scores</option>
+                        </select>
+                    </div>
+                    <div class="pt-1 border-t border-slate-100">
+                        <label class="block font-semibold text-slate-700 mb-1">Home Form Rate (Min - Max)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" step="any" id="filter-home-form-min" placeholder="Min" class="border border-slate-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                            <input type="number" step="any" id="filter-home-form-max" placeholder="Max" class="border border-slate-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Away Form Rate (Min - Max)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" step="any" id="filter-away-form-min" placeholder="Min" class="border border-slate-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                            <input type="number" step="any" id="filter-away-form-max" placeholder="Max" class="border border-slate-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 text-xs bg-slate-50/50" onchange="applyAllMatchesFilters()">
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="flex-1 flex flex-col h-full gap-3 overflow-hidden">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Matches</span>
+                        <span id="summary-all-total" class="text-sm font-extrabold text-blue-900">0</span>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Prediction Accuracy</span>
+                        <span id="summary-all-acc" class="text-sm font-extrabold text-teal-700">0/0 (0.0%)</span>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Pick Win Rate</span>
+                        <span id="summary-all-target" class="text-sm font-extrabold text-amber-600">0/0 (0.0%)</span>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Leagues Count</span>
+                        <span id="summary-all-leagues" class="text-sm font-extrabold text-purple-700">0</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 flex-1 overflow-hidden flex flex-col">
+                    <div class="overflow-x-auto overflow-y-auto flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-900 text-white sticky top-0 z-10 shadow-sm text-[10px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-2.5 px-2 font-bold border-b border-slate-800">Date / League</th>
+                                    <th class="py-2.5 px-2 font-bold border-b border-slate-800">Home Team</th>
+                                    <th class="py-2.5 px-2 font-bold border-b border-slate-800">Away Team</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-slate-800 text-center bg-slate-800/60">Target Pick</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-slate-800 text-center bg-slate-800/40">Conf %</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-slate-800 text-center bg-slate-800/60">Model Conf %</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-slate-800 text-center bg-teal-900/50 text-teal-300">Score</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-slate-800 text-center">Result</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-slate-800 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-all" class="text-[11px] divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm shrink-0 text-xs">
+                    <span id="page-info-all" class="text-slate-500 font-medium">Showing 0-0 of 0</span>
+                    <div class="flex space-x-2">
+                        <button onclick="prevPage('all')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Prev</button>
+                        <button onclick="nextPage('all')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BEST MATCHES TAB ==================== -->
+        <div id="content-best-matches" class="hidden flex-col lg:flex-row w-full h-full gap-4">
+            <aside class="w-full lg:w-72 xl:w-80 bg-white rounded-2xl shadow-sm border border-emerald-200 flex flex-col shrink-0 overflow-hidden">
+                <div class="bg-emerald-900 text-white p-3.5 border-b border-emerald-800 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-100">Best Matches Filters</h2>
+                    </div>
+                    <button onclick="resetBestMatchesFilters()" class="text-[11px] bg-emerald-800 hover:bg-emerald-700 text-emerald-200 font-semibold px-2.5 py-1 rounded-md transition-colors border border-emerald-700">Reset</button>
+                </div>
+                <div class="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+                    <div>
+                        <label class="block font-semibold text-emerald-900 mb-1">Search Team</label>
+                        <input type="text" id="bm-search-team" placeholder="e.g. Barcelona..." class="w-full border border-emerald-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500 text-xs bg-emerald-50/30" onkeyup="applyBestMatchesFilters()">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-emerald-900 mb-1">Date</label>
+                            <input type="date" id="bm-filter-date" class="w-full border border-emerald-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-emerald-500 text-xs bg-emerald-50/30" onchange="applyBestMatchesFilters()">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-emerald-900 mb-1">Month</label>
+                            <select id="bm-filter-month" class="w-full border border-emerald-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-emerald-500 text-xs bg-emerald-50/30" onchange="applyBestMatchesFilters()">
+                                <option value="">All Months</option>
+                                <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-emerald-900 mb-1">League</label>
+                        <select id="bm-filter-league" class="w-full border border-emerald-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500 text-xs bg-emerald-50/30" onchange="applyBestMatchesFilters()">
+                            <option value="">All Leagues</option>
+                        </select>
+                    </div>
+                    <div class="bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-300">
+                        <label class="block font-bold text-emerald-900 mb-1 flex items-center justify-between">
+                            <span>Correct Score</span>
+                            <span class="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded">Filter</span>
+                        </label>
+                        <select id="bm-filter-correct-score" class="w-full border border-emerald-400 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-emerald-600 text-xs bg-white font-semibold text-emerald-950" onchange="applyBestMatchesFilters()">
+                            <option value="">All Correct Scores</option>
+                        </select>
+                    </div>
+                    <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-[11px] text-amber-800">
+                        <span class="font-bold block mb-0.5">ℹ️ Threshold Logic Active</span>
+                        Matches shown here are automatically filtered using criteria from the <a href="#" onclick="switchTab('settings')" class="underline font-bold">Settings Tab</a>.
+                    </div>
+                </div>
+            </aside>
+
+            <div class="flex-1 flex flex-col h-full gap-3 overflow-hidden">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+                    <div class="bg-white p-2.5 rounded-xl border-t-4 border-t-blue-900 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Filtered Matches</span>
+                        <span id="summary-best-total" class="text-sm font-extrabold text-blue-900">0</span>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border-t-4 border-t-teal-600 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Prediction Accuracy</span>
+                        <span id="summary-best-acc" class="text-sm font-extrabold text-teal-700">0/0 (0.0%)</span>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border-t-4 border-t-amber-600 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Pick Win Rate</span>
+                        <span id="summary-best-target" class="text-sm font-extrabold text-amber-600">0/0 (0.0%)</span>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border-t-4 border-t-purple-700 border-x border-b border-slate-200 shadow-sm text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg Confidence</span>
+                        <span id="summary-best-conf" class="text-sm font-extrabold text-purple-700">0.0%</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 flex-1 overflow-hidden flex flex-col">
+                    <div class="overflow-x-auto overflow-y-auto flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-emerald-950 text-white sticky top-0 z-10 shadow-sm text-[10px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-2.5 px-2 font-bold border-b border-emerald-900">Date / League</th>
+                                    <th class="py-2.5 px-2 font-bold border-b border-emerald-900">Home Team</th>
+                                    <th class="py-2.5 px-2 font-bold border-b border-emerald-900">Away Team</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-emerald-900 text-center bg-emerald-900/60">Target Pick</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-emerald-900 text-center bg-emerald-900/40">Conf %</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-emerald-900 text-center bg-emerald-900/60">Model Conf %</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-emerald-900 text-center bg-emerald-800 text-emerald-200">Score</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-emerald-900 text-center">Result</th>
+                                    <th class="py-2.5 px-1.5 font-bold border-b border-emerald-900 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body-best" class="text-[11px] divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm shrink-0 text-xs">
+                    <span id="page-info-best" class="text-slate-500 font-medium">Showing 0-0 of 0</span>
+                    <div class="flex space-x-2">
+                        <button onclick="prevPage('best')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Prev</button>
+                        <button onclick="nextPage('best')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== BEST TIPS TAB ==================== -->
+        <div id="content-best-tips" class="hidden flex-col lg:flex-row w-full h-full gap-4">
+           <aside class="w-full lg:w-72 xl:w-80 bg-white rounded-2xl shadow-sm border border-blue-200 flex flex-col shrink-0 overflow-hidden">
+               <div class="bg-blue-900 text-white p-3.5 border-b border-blue-800 flex justify-between items-center">
+                   <div class="flex items-center gap-2">
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                       </svg>
+                       <h2 class="text-xs font-bold uppercase tracking-wider text-blue-100">Best Tips Filters</h2>
+                   </div>
+                   <button onclick="resetBestTipsFilters()" class="text-[11px] bg-blue-800 hover:bg-blue-700 text-blue-200 font-semibold px-2.5 py-1 rounded-md transition-colors border border-blue-700">Reset</button>
+               </div>
+               <div class="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+                   <div>
+                       <label class="block font-semibold text-blue-900 mb-1">Search Team</label>
+                       <div class="relative">
+                           <input type="text" id="bt-search-team" placeholder="e.g. Arsenal..." class="w-full border border-blue-300 rounded-lg pl-8 pr-3 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-blue-50/30" onkeyup="applyBestTipsFilters()">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-2.5 top-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                       </div>
+                   </div>
+                   <div class="grid grid-cols-2 gap-2">
+                       <div>
+                           <label class="block font-semibold text-blue-900 mb-1">Date</label>
+                           <input type="date" id="bt-filter-date" class="w-full border border-blue-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-blue-50/30" onchange="applyBestTipsFilters()">
+                       </div>
+                       <div>
+                           <label class="block font-semibold text-blue-900 mb-1">Month</label>
+                           <select id="bt-filter-month" class="w-full border border-blue-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-blue-50/30" onchange="applyBestTipsFilters()">
+                               <option value="">All</option>
+                               <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                           </select>
+                       </div>
+                   </div>
+                   <div>
+                       <label class="block font-semibold text-blue-900 mb-1">League</label>
+                       <select id="bt-filter-league" class="w-full border border-blue-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 text-xs bg-blue-50/30" onchange="applyBestTipsFilters()">
+                           <option value="">All Leagues</option>
+                       </select>
+                   </div>
+                    <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200 text-[11px] text-blue-800">
+                        <span class="font-bold block mb-0.5">ℹ️ Smart Tip Engine</span>
+                        Shows high-confidence single predictions synthesized from 85% Target Picks & Probabilities.
+                    </div>
+               </div>
+           </aside>
+
+           <div class="flex-1 flex flex-col h-full gap-3 overflow-hidden">
+               <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 flex-1 overflow-hidden flex flex-col">
+                   <div class="overflow-x-auto overflow-y-auto flex-1">
+                       <table class="w-full text-left border-collapse">
+                           <thead class="bg-blue-950 text-white sticky top-0 z-10 shadow-sm text-[10px] uppercase tracking-wider">
+                               <tr>
+                                   <th class="py-2.5 px-2 font-bold border-b border-blue-900">Date / League</th>
+                                   <th class="py-2.5 px-2 font-bold border-b border-blue-900">Home Team</th>
+                                   <th class="py-2.5 px-2 font-bold border-b border-blue-900">Away Team</th>
+                                   <th class="py-2.5 px-1.5 font-bold border-b border-blue-900 text-center bg-blue-900/60">Target Pick</th>
+                                   <th class="py-2.5 px-1.5 font-bold border-b border-blue-900 text-center bg-blue-900/40">Conf %</th>
+                                   <th class="py-2.5 px-1.5 font-bold border-b border-blue-900 text-center bg-blue-900/60">Model Conf %</th>
+                                   <th class="py-2.5 px-1.5 font-bold border-b border-blue-900 text-center bg-blue-800 text-blue-200">Score</th>
+                                   <th class="py-2.5 px-1.5 font-bold border-b border-blue-900 text-center">Result</th>
+                                   <th class="py-2.5 px-1.5 font-bold border-b border-blue-900 text-center">Action</th>
+                               </tr>
+                           </thead>
+                           <tbody id="table-body-tips" class="text-[11px] divide-y divide-slate-100"></tbody>
+                       </table>
+                   </div>
+               </div>
+               <div class="flex justify-between items-center bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm shrink-0 text-xs">
+                   <span id="page-info-tips" class="text-slate-500 font-medium">Showing 0-0 of 0</span>
+                   <div class="flex space-x-2">
+                       <button onclick="prevPage('tips')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Prev</button>
+                       <button onclick="nextPage('tips')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md font-semibold transition disabled:opacity-40">Next</button>
+                   </div>
+               </div>
+           </div>
+       </div>
+
+        <!-- ==================== ANALYSIS TAB ==================== -->
+        <div id="content-analysis" class="hidden flex-col lg:flex-row w-full h-full gap-4 overflow-hidden">
+            <aside class="w-full lg:w-72 xl:w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col shrink-0 overflow-hidden">
+                <div class="bg-indigo-950 text-white p-3.5 border-b border-indigo-900 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-100">Analytics Dashboard</h2>
+                    </div>
+                    <button onclick="renderAnalytics()" class="text-[11px] bg-indigo-900 hover:bg-indigo-800 text-indigo-200 font-semibold px-2.5 py-1 rounded-md transition-colors border border-indigo-700">Refresh</button>
+                </div>
+                <div class="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+                    <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-indigo-900">
+                        <h3 class="font-bold mb-1">Model Performance Insights</h3>
+                        <p class="text-[11px] text-indigo-700 leading-relaxed">Aggregated win rates, model reliability metrics, and prediction distribution charts across all loaded matches.</p>
+                    </div>
+                </div>
+            </aside>
+            <div class="flex-1 overflow-y-auto bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3">Model Accuracy Comparison</h3>
+                        <div id="analytics-bars" class="space-y-3"></div>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3">Overall Database Statistics</h3>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Total Matches</span>
+                                <span id="stat-total-matches" class="text-xl font-extrabold text-slate-900">0</span>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Completed / Settled</span>
+                                <span id="stat-settled-matches" class="text-xl font-extrabold text-teal-700">0</span>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Leagues Tracked</span>
+                                <span id="stat-leagues-count" class="text-xl font-extrabold text-blue-700">0</span>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                <span class="text-[10px] text-slate-400 font-bold block uppercase">Avg Accuracy</span>
+                                <span id="stat-avg-accuracy" class="text-xl font-extrabold text-amber-600">0.0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ROI TAB ==================== -->
+        <div id="content-roi" class="hidden flex-col w-full h-full gap-4 overflow-hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Return on Investment (ROI) Tracker</h2>
+                    <p class="text-xs text-slate-500">Calculate potential returns based on flat staking and model prediction/target pick odds.</p>
+                </div>
+                <div class="flex gap-2">
+                    <input type="number" id="roi-stake" value="10" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-24" placeholder="Stake ($)" onchange="renderROI()">
+                    <select id="roi-model" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-slate-50" onchange="renderROI()">
+                        <option value="targetPick">85% Target Pick</option>
+                        <option value="modelPrediction">Model Prediction</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Total Staked</span>
+                    <span id="roi-total-staked" class="text-2xl font-extrabold text-slate-900 block mt-1">$0.00</span>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Total Returned</span>
+                    <span id="roi-total-returned" class="text-2xl font-extrabold text-blue-700 block mt-1">$0.00</span>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Net Profit / ROI %</span>
+                    <span id="roi-net-profit" class="text-2xl font-extrabold text-emerald-600 block mt-1">$0.00 (0.0%)</span>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-100 text-slate-700 uppercase text-[10px]">
+                        <tr>
+                            <th class="p-3">Match</th>
+                            <th class="p-3">Prediction</th>
+                            <th class="p-3 text-center">Odds</th>
+                            <th class="p-3 text-center">Result</th>
+                            <th class="p-3 text-right">Profit / Loss</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roi-table-body" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== TODAYS BEST TAB ==================== -->
+        <div id="content-todays-best" class="hidden flex-col w-full h-full gap-4 overflow-hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Today's Best Picks</h2>
+                    <p class="text-xs text-slate-500">Curated high-probability fixtures matching today's date or top upcoming matches.</p>
+                </div>
+                <button onclick="renderTodaysBest()" class="bg-pink-600 hover:bg-pink-700 text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs shadow">Refresh Picks</button>
+            </div>
+            <div id="todays-best-container" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- ==================== SETTINGS TAB ==================== -->
+        <div id="content-settings" class="hidden flex-col w-full h-full gap-4 overflow-hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+            <div class="border-b border-slate-200 pb-4">
+                <h2 class="text-lg font-bold text-slate-900">Platform Settings & Data Source</h2>
+                <p class="text-xs text-slate-500">Configure your Google Sheets CSV published link and model thresholds.</p>
+            </div>
+            <div class="max-w-2xl space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Google Sheets Published CSV URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="settings-csv-url" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs bg-slate-50 font-mono" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+                        <button onclick="saveAndReloadCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow">Reload Data</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Make sure your Google Sheet is published to the web as CSV.</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                    <h3 class="font-bold text-slate-800">Best Matches Thresholds</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Min Home Form Rate</label>
+                            <input type="number" id="setting-min-home-form" value="0" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Min Away Form Rate</label>
+                            <input type="number" id="setting-min-away-form" value="0" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <button onclick="saveSettings()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2 rounded-lg shadow">Save Preferences</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="match-modal" class="fixed inset-0 bg-slate-900/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in border border-slate-200">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-sm">Match Analytics Details</h3>
+                <button onclick="closeMatchModal()" class="text-slate-400 hover:text-white font-bold text-lg">&times;</button>
+            </div>
+            <div id="modal-content" class="p-6 space-y-4 text-xs"></div>
+            <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end">
+                <button onclick="closeMatchModal()" class="bg-slate-900 text-white px-4 py-1.5 rounded-lg font-semibold text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS4skYgtxtfHuZElx4Mrx2n4NC0keZGjsKxgZNHOpPGrkVy2j_5GQWmyNlQu1y5TAjQKfDHAiBVknfi/pub?gid=1663545554&single=true&output=csv";
+
+        let appState = {
+            matches: [],
+            filteredAll: [],
+            filteredBest: [],
+            filteredTips: [],
+            currentTab: 'all-matches',
+            pages: { all: 1, best: 1, tips: 1 },
+            pageSize: 25,
+            csvUrl: localStorage.getItem('dc360_csv_url') || DEFAULT_CSV_URL,
+            settings: {
+                minHomeForm: parseFloat(localStorage.getItem('dc360_min_home_form') || '0'),
+                minAwayForm: parseFloat(localStorage.getItem('dc360_min_away_form') || '0')
+            }
+        };
+
+        window.onload = function() {
+            document.getElementById('settings-csv-url').value = appState.csvUrl;
+            document.getElementById('setting-min-home-form').value = appState.settings.minHomeForm;
+            document.getElementById('setting-min-away-form').value = appState.settings.minAwayForm;
+            fetchAndParseCSV();
+        };
 
         function parseCSV(text) {
-            let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0, l;
-            for (l of text) {
-                if ('"' === l) {
-                    if (s && l === p) row[i] += l;
-                    s = !s;
-                } else if (',' === l && s) l = row[++i] = '';
-                else if ('\n' === l && s) {
-                    if ('\r' === p) row[i] = row[i].slice(0, -1);
-                    row = ret[++r] = [l = '']; i = 0;
-                } else row[i] += l;
-                p = l;
-            }
-            return ret;
-        }
-
-        function parseCSVData(csvText) {
-            const parsed = parseCSV(csvText);
-            if (parsed.length < 2) return;
+            let lines = [];
+            let row = [""];
+            let insideQuote = false;
             
-            const headers = parsed[0];
-            headerMap = {}; 
-            headers.forEach((h, i) => { 
-                const key = h.replace(/\s+/g, ' ').trim().toLowerCase();
-                if (!headerMap[key]) headerMap[key] = [];
-                headerMap[key].push(i);
-            });
-            
-            globalData = [];
-            for (let i = 1; i < parsed.length; i++) {
-                if (parsed[i].length > 1 && parsed[i].join('').trim() !== '') {
-                    globalData.push(parsed[i]);
-                }
-            }
-        }
-
-        function parseSettingsCSV(csvText) {
-            const parsed = parseCSV(csvText);
-            thresholds = {};
-            if (parsed.length < 2) return;
-            const headers = parsed[0].map(h => h.trim().toLowerCase());
-            const valIdx = headers.indexOf('value');
-            if (valIdx === -1) return;
-            
-            for(let i=1; i<parsed.length; i++) {
-                if(parsed[i].length > valIdx) {
-                    const key = parsed[i][0].trim();
-                    const val = parsed[i][valIdx].trim();
-                    if(key && val) thresholds[key] = parseFloat(val);
-                }
-            }
-            localStorage.setItem('datacompas_settings', JSON.stringify(thresholds));
-        }
-
-        function loadSettingsFromLocalStorage() {
-            const stored = localStorage.getItem('datacompas_settings');
-            if (stored) {
-                try { thresholds = JSON.parse(stored); } 
-                catch(e) { console.error("Parse settings error", e); thresholds = {}; }
-            }
-        }
-
-        function getVal(row, colName, occurrence = 0) {
-            const key = colName.replace(/\s+/g, ' ').trim().toLowerCase();
-            const indices = headerMap[key];
-            if (indices && Array.isArray(indices)) {
-                const idx = indices[occurrence] !== undefined ? indices[occurrence] : indices[0];
-                return idx !== undefined && idx < row.length ? row[idx].trim() : '';
-            }
-            return '';
-        }
-
-        function getNum(row, colName, occurrence = 0) {
-            const val = getVal(row, colName, occurrence);
-            if (val === '') return null;
-            if (val.includes(':')) {
-                const parts = val.split(':');
-                if(parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                    return parseFloat(parts[0]) - parseFloat(parts[1]); 
-                }
-            }
-            if (val.includes('-')) {
-                const parts = val.split('-');
-                if(parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                    return parseFloat(parts[0]) - parseFloat(parts[1]);
-                }
-            }
-            const clean = val.replace(/[^0-9.-]/g, '');
-            const parsed = parseFloat(clean);
-            return isNaN(parsed) ? null : parsed;
-        }
-
-        function populateDynamicDropdowns() {
-            const leagues = new Set(), m1Preds = new Set(), 
-                  csScores = new Set(), dates = new Set(),
-                  m2Tips = new Set(), m3Outcomes = new Set(), m4Preds = new Set();
-            
-            globalData.forEach(row => {
-                const l = getVal(row, 'League'); if (l) leagues.add(l);
-                const m1 = getVal(row, 'Prediction'); if (m1) m1Preds.add(m1);
-                const m2 = getVal(row, 'Match Tip'); if (m2) m2Tips.add(m2);
-                const m3 = getVal(row, 'Outcome Pred'); if (m3) m3Outcomes.add(m3);
-                const m4 = getVal(row, 'Model Pred'); if (m4) m4Preds.add(m4);
-                const cs = getVal(row, 'Correct Score'); if (cs) csScores.add(cs);
-                const d = getVal(row, 'Date'); if (d) dates.add(d);
-            });
-
-            const populateSel = (id, set, defTxt) => {
-                const sel = document.getElementById(id);
-                if(sel) {
-                    const cur = sel.value;
-                    sel.innerHTML = `<option value="">${defTxt}</option>`;
-                    Array.from(set).sort().forEach(v => {
-                        const opt = document.createElement('option'); opt.value = v; opt.textContent = v; sel.appendChild(opt);
-                    });
-                    sel.value = cur;
-                }
-            };
-
-            populateSel('filter-league', leagues, 'All Leagues');
-            populateSel('bm-filter-league', leagues, 'All Leagues');
-            populateSel('an-filter-league', leagues, 'All Leagues');
-            populateSel('bt-filter-league', leagues, 'All Leagues');
-            populateSel('roi-league', leagues, 'All Leagues');
-            
-            populateSel('filter-prediction', m1Preds, 'All Predictions');
-            populateSel('bm-filter-prediction', m1Preds, 'All Predictions');
-            populateSel('an-filter-prediction', m1Preds, 'All Predictions');
-            populateSel('bt-filter-prediction', m1Preds, 'All Predictions');
-
-            populateSel('filter-correct-score', csScores, 'All Correct Scores');
-            populateSel('bm-filter-correct-score', csScores, 'All Correct Scores');
-            populateSel('an-filter-correct-score', csScores, 'All Correct Scores');
-
-            populateSel('all-model-m1', m1Preds, 'All'); populateSel('bm-model-m1', m1Preds, 'All');
-            populateSel('all-model-m2', m2Tips, 'All'); populateSel('bm-model-m2', m2Tips, 'All');
-            populateSel('all-model-m3', m3Outcomes, 'All'); populateSel('bm-model-m3', m3Outcomes, 'All');
-            populateSel('all-model-m4', m4Preds, 'All'); populateSel('bm-model-m4', m4Preds, 'All');
-        }
-
-        function checkModelMatch(row, modelCol, filterId) {
-            const filterVal = document.getElementById(filterId) ? document.getElementById(filterId).value.toLowerCase() : '';
-            if (!filterVal) return true;
-            return getVal(row, modelCol).toLowerCase() === filterVal;
-        }
-        
-        function getCommonFilters(prefix, row) {
-            const team = document.getElementById(`${prefix}search-team`)?.value.toLowerCase();
-            const dateStr = document.getElementById(`${prefix}filter-date`)?.value;
-            const month = document.getElementById(`${prefix}filter-month`)?.value;
-            const league = document.getElementById(`${prefix}filter-league`)?.value.toLowerCase();
-            
-            const rHome = getVal(row, 'Home').toLowerCase();
-            const rAway = getVal(row, 'Away').toLowerCase();
-            const rDate = getVal(row, 'Date');
-            const rLeague = getVal(row, 'League').toLowerCase();
-
-            if (team && !rHome.includes(team) && !rAway.includes(team)) return false;
-            if (league && rLeague !== league) return false;
-            
-            if (dateStr) {
-                const d1 = new Date(rDate);
-                const d2 = new Date(dateStr);
-                if (!isNaN(d1.valueOf()) && !isNaN(d2.valueOf())) {
-                    if (d1.toDateString() !== d2.toDateString()) return false;
-                } else {
-                    const [y, m, d] = dateStr.split('-');
-                    const dStr = `${d}/${m}/${y}`; 
-                    if (!rDate.includes(dateStr) && !rDate.includes(dStr)) return false;
-                }
-            }
-
-            if (month) {
-                const d1 = new Date(rDate);
-                if (!isNaN(d1.valueOf())) {
-                    if ((d1.getMonth() + 1).toString() !== month) return false;
-                } else {
-                    const parts = rDate.split(/[-/]/);
-                    if (parts.length >= 2) {
-                        const mStr = parts[1].replace(/^0+/, ''); 
-                        if (mStr !== month) return false;
-                    }
-                }
-            }
-            return true;
-        }
-
-        // ==================== ALL MATCHES LOGIC ====================
-        function applyAllMatchesFilters() {
-            const pred = document.getElementById('filter-prediction').value.toLowerCase();
-            const cs = document.getElementById('filter-correct-score').value.toLowerCase();
-            const hfMin = document.getElementById('filter-home-form-min').value;
-            const hfMax = document.getElementById('filter-home-form-max').value;
-            const afMin = document.getElementById('filter-away-form-min').value;
-            const afMax = document.getElementById('filter-away-form-max').value;
-
-            filteredAllData = globalData.filter(row => {
-                if (!getCommonFilters('', row)) return false;
-
-                const rPred = getVal(row, 'Prediction').toLowerCase();
-                const rCs = getVal(row, 'Correct Score').toLowerCase();
-                if (pred && rPred !== pred) return false;
-                if (cs && rCs !== cs) return false;
-
-                const hf = getNum(row, 'Home Form Rate');
-                if (hfMin && (hf === null || hf < parseFloat(hfMin))) return false;
-                if (hfMax && (hf === null || hf > parseFloat(hfMax))) return false;
-
-                const af = getNum(row, 'Away Form Rate');
-                if (afMin && (af === null || af < parseFloat(afMin))) return false;
-                if (afMax && (af === null || af > parseFloat(afMax))) return false;
-
-                let advMatch = true;
-                for (const field of advFields) {
-                    const minId = 'adv-min-' + field.replace(/\s+/g, '-');
-                    const maxId = 'adv-max-' + field.replace(/\s+/g, '-');
-                    const minEl = document.getElementById(minId);
-                    const maxEl = document.getElementById(maxId);
-                    if (minEl && maxEl) {
-                        const min = minEl.value; const max = maxEl.value;
-                        if (min || max) {
-                            const val = getNum(row, field);
-                            if (min && (val === null || val < parseFloat(min))) { advMatch = false; break; }
-                            if (max && (val === null || val > parseFloat(max))) { advMatch = false; break; }
-                        }
-                    }
-                }
-                if (!advMatch) return false;
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                let nextC = text[i + 1];
                 
-                if (!checkModelMatch(row, 'Prediction', 'all-model-m1')) return false;
-                if (!checkModelMatch(row, 'Match Tip', 'all-model-m2')) return false;
-                if (!checkModelMatch(row, 'Outcome Pred', 'all-model-m3')) return false;
-                if (!checkModelMatch(row, 'Model Pred', 'all-model-m4')) return false;
+                if (c === '"') {
+                    if (insideQuote && nextC === '"') {
+                        row[row.length - 1] += '"';
+                        i++;
+                    } else {
+                        insideQuote = !insideQuote;
+                    }
+                } else if (c === ',' && !insideQuote) {
+                    row.push("");
+                } else if ((c === '\r' || c === '\n') && !insideQuote) {
+                    if (c === '\r' && nextC === '\n') { i++; }
+                    lines.push(row);
+                    row = [""];
+                } else {
+                    row[row.length - 1] += c;
+                }
+            }
+            if (row.length > 1 || row[0] !== "") {
+                lines.push(row);
+            }
+            return lines;
+        }
 
+        async function fetchAndParseCSV() {
+            showLoader(true);
+            hideError();
+            try {
+                let response = await fetch(appState.csvUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                let csvText = await response.text();
+                
+                let rows = parseCSV(csvText);
+                if (rows.length < 2) throw new Error("CSV file appears empty or invalid.");
+
+                let headers = rows[0].map(h => h.trim().toLowerCase());
+                
+                function findCol(keywords) {
+                    for (let kw of keywords) {
+                        let idx = headers.findIndex(h => h.includes(kw));
+                        if (idx !== -1) return idx;
+                    }
+                    return -1;
+                }
+
+                let idxDate = findCol(['date', 'time', 'day']);
+                let idxLeague = findCol(['league', 'competition', 'tournament']);
+                let idxHome = findCol(['home', 'team1', 'hometeam']);
+                let idxAway = findCol(['away', 'team2', 'awayteam']);
+                let idxTargetPick = findCol(['85% target pick', 'target pick', '85%']);
+                let idxConfidence = findCol(['confidence %', 'confidence']);
+                let idxModelConfidence = findCol(['85% model confidence %', 'model confidence']);
+                let idxScore = findCol(['correct score', 'score', 'exact score']);
+                let idxResult = findCol(['result', 'outcome', 'ft']);
+                let idxHomeForm = findCol(['home form', 'h_form']);
+                let idxAwayForm = findCol(['away form', 'a_form']);
+
+                appState.matches = [];
+                for (let i = 1; i < rows.length; i++) {
+                    let r = rows[i];
+                    if (r.length < 2 || r.every(cell => !cell.trim())) continue;
+
+                    let match = {
+                        date: idxDate !== -1 ? (r[idxDate] || '') : '',
+                        league: idxLeague !== -1 ? (r[idxLeague] || 'Unknown League') : 'Unknown League',
+                        home: idxHome !== -1 ? (r[idxHome] || 'Home Team') : (r[0] || 'Home Team'),
+                        away: idxAway !== -1 ? (r[idxAway] || 'Away Team') : (r[1] || 'Away Team'),
+                        targetPick: idxTargetPick !== -1 ? (r[idxTargetPick] || '-') : '-',
+                        confidence: idxConfidence !== -1 ? (r[idxConfidence] || '-') : '-',
+                        modelConfidence: idxModelConfidence !== -1 ? (r[idxModelConfidence] || '-') : '-',
+                        score: idxScore !== -1 ? (r[idxScore] || '-') : '-',
+                        result: idxResult !== -1 ? (r[idxResult] || '-') : '-',
+                        homeForm: idxHomeForm !== -1 ? parseFloat(r[idxHomeForm]) || 0 : 0,
+                        awayForm: idxAwayForm !== -1 ? parseFloat(r[idxAwayForm]) || 0 : 0
+                    };
+                    appState.matches.push(match);
+                }
+
+                populateFilterDropdowns();
+                applyAllMatchesFilters();
+                applyBestMatchesFilters();
+                applyBestTipsFilters();
+                renderAnalytics();
+                renderROI();
+                renderTodaysBest();
+
+                showLoader(false);
+            } catch (err) {
+                showLoader(false);
+                showError("Failed to load match data from Google Sheets: " + err.message + ". Loaded offline sample data instead.");
+                loadSampleData();
+            }
+        }
+
+        function loadSampleData() {
+            appState.matches = [
+                { date: '2026-10-10', league: 'Premier League', home: 'Arsenal', away: 'Chelsea', targetPick: '1', confidence: '82%', modelConfidence: '88%', score: '2-1', result: '1', homeForm: 85, awayForm: 70 },
+                { date: '2026-10-10', league: 'La Liga', home: 'Real Madrid', away: 'Barcelona', targetPick: '2', confidence: '85%', modelConfidence: '91%', score: '1-2', result: '2', homeForm: 78, awayForm: 88 },
+                { date: '2026-10-11', league: 'Serie A', home: 'Inter Milan', away: 'Juventus', targetPick: '1', confidence: '80%', modelConfidence: '85%', score: '2-0', result: '1', homeForm: 90, awayForm: 65 },
+                { date: '2026-10-11', league: 'Bundesliga', home: 'Bayern Munich', away: 'Dortmund', targetPick: '1', confidence: '87%', modelConfidence: '89%', score: '3-1', result: '1', homeForm: 82, awayForm: 75 }
+            ];
+            populateFilterDropdowns();
+            applyAllMatchesFilters();
+            applyBestMatchesFilters();
+            applyBestTipsFilters();
+            renderAnalytics();
+            renderROI();
+            renderTodaysBest();
+        }
+
+        function switchTab(tabId) {
+            appState.currentTab = tabId;
+            const tabs = ['all-matches', 'best-matches', 'best-tips', 'analysis', 'roi', 'todays-best', 'settings'];
+            tabs.forEach(t => {
+                let contentEl = document.getElementById(`content-${t}`);
+                let btnEl = document.getElementById(`tab-${t}`);
+                if (contentEl) {
+                    if (t === tabId) {
+                        contentEl.classList.remove('hidden');
+                        contentEl.classList.add('flex');
+                    } else {
+                        contentEl.classList.remove('flex');
+                        contentEl.classList.add('hidden');
+                    }
+                }
+                if (btnEl) {
+                    if (t === tabId) {
+                        btnEl.classList.add('active');
+                    } else {
+                        btnEl.classList.remove('active');
+                    }
+                }
+            });
+        }
+
+        function populateFilterDropdowns() {
+            let leagues = [...new Set(appState.matches.map(m => m.league))].filter(Boolean).sort();
+            let predictions = [...new Set(appState.matches.map(m => m.modelPrediction))].filter(p => p && p !== '-').sort();
+            let scores = [...new Set(appState.matches.map(m => m.score))].filter(s => s && s !== '-').sort();
+
+            ['filter-league', 'bm-filter-league', 'bt-filter-league'].forEach(id => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                let cur = el.value;
+                el.innerHTML = '<option value="">All Leagues</option>' + leagues.map(l => `<option value="${l}">${l}</option>`).join('');
+                el.value = cur;
+            });
+
+            ['filter-prediction', 'bm-filter-prediction', 'bt-filter-prediction'].forEach(id => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                let cur = el.value;
+                el.innerHTML = '<option value="">All Predictions</option>' + predictions.map(p => `<option value="${p}">${p}</option>`).join('');
+                el.value = cur;
+            });
+
+            ['filter-correct-score', 'bm-filter-correct-score', 'bt-filter-correct-score'].forEach(id => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                let cur = el.value;
+                el.innerHTML = '<option value="">All Correct Scores</option>' + scores.map(s => `<option value="${s}">${s}</option>`).join('');
+                el.value = cur;
+            });
+        }
+
+        function applyAllMatchesFilters() {
+            let search = (document.getElementById('search-team')?.value || '').toLowerCase();
+            let date = document.getElementById('filter-date')?.value || '';
+            let month = document.getElementById('filter-month')?.value || '';
+            let league = document.getElementById('filter-league')?.value || '';
+            let pred = document.getElementById('filter-prediction')?.value || '';
+            let score = document.getElementById('filter-correct-score')?.value || '';
+            let hMin = parseFloat(document.getElementById('filter-home-form-min')?.value) || 0;
+            let hMax = parseFloat(document.getElementById('filter-home-form-max')?.value) || 999;
+            let aMin = parseFloat(document.getElementById('filter-away-form-min')?.value) || 0;
+            let aMax = parseFloat(document.getElementById('filter-away-form-max')?.value) || 999;
+
+            appState.filteredAll = appState.matches.filter(m => {
+                if (search && !m.home.toLowerCase().includes(search) && !m.away.toLowerCase().includes(search)) return false;
+                if (date && m.date !== date) return false;
+                if (month) {
+                    let mDate = new Date(m.date);
+                    if (isNaN(mDate.getTime()) || (mDate.getMonth() + 1).toString() !== month) return false;
+                }
+                if (league && m.league !== league) return false;
+                if (pred && m.modelPrediction !== pred && m.targetPick !== pred) return false;
+                if (score && m.score !== score) return false;
+                if (m.homeForm < hMin || m.homeForm > hMax) return false;
+                if (m.awayForm < aMin || m.awayForm > aMax) return false;
                 return true;
             });
-            allPage = 1;
-            updateSummaries('all', filteredAllData);
-            renderTable('all', filteredAllData, allPage);
+
+            appState.pages.all = 1;
+            renderTable('all');
+            updateSummary('all');
         }
 
         function resetAllMatchesFilters() {
-            document.getElementById('search-team').value = '';
-            document.getElementById('filter-date').value = '';
-            document.getElementById('filter-month').value = '';
-            document.getElementById('filter-league').value = '';
-            document.getElementById('filter-prediction').value = '';
-            document.getElementById('filter-correct-score').value = '';
-            document.getElementById('filter-home-form-min').value = '';
-            document.getElementById('filter-home-form-max').value = '';
-            document.getElementById('filter-away-form-min').value = '';
-            document.getElementById('filter-away-form-max').value = '';
-            clearAdvFilters();
-            clearAllModelFilters();
+            if (document.getElementById('search-team')) document.getElementById('search-team').value = '';
+            if (document.getElementById('filter-date')) document.getElementById('filter-date').value = '';
+            if (document.getElementById('filter-month')) document.getElementById('filter-month').value = '';
+            if (document.getElementById('filter-league')) document.getElementById('filter-league').value = '';
+            if (document.getElementById('filter-prediction')) document.getElementById('filter-prediction').value = '';
+            if (document.getElementById('filter-correct-score')) document.getElementById('filter-correct-score').value = '';
+            if (document.getElementById('filter-home-form-min')) document.getElementById('filter-home-form-min').value = '';
+            if (document.getElementById('filter-home-form-max')) document.getElementById('filter-home-form-max').value = '';
+            if (document.getElementById('filter-away-form-min')) document.getElementById('filter-away-form-min').value = '';
+            if (document.getElementById('filter-away-form-max')) document.getElementById('filter-away-form-max').value = '';
             applyAllMatchesFilters();
         }
 
-        // ==================== BEST MATCHES LOGIC ====================
         function applyBestMatchesFilters() {
-            const pred = document.getElementById('bm-filter-prediction').value.toLowerCase();
-            const cs = document.getElementById('bm-filter-correct-score').value.toLowerCase();
+            let search = (document.getElementById('bm-search-team')?.value || '').toLowerCase();
+            let date = document.getElementById('bm-filter-date')?.value || '';
+            let month = document.getElementById('bm-filter-month')?.value || '';
+            let league = document.getElementById('bm-filter-league')?.value || '';
+            let score = document.getElementById('bm-filter-correct-score')?.value || '';
+            let minH = appState.settings.minHomeForm;
+            let minA = appState.settings.minAwayForm;
 
-            filteredBestData = globalData.filter(row => {
-                if (!getCommonFilters('bm-', row)) return false;
-
-                const rPred = getVal(row, 'Prediction').toLowerCase();
-                const rCs = getVal(row, 'Correct Score').toLowerCase();
-                if (pred && rPred !== pred) return false;
-                if (cs && rCs !== cs) return false;
-
-                // Thresholds Check
-                for (const field of settingsFields) {
-                    const minKey = field + ' Min'; const maxKey = field + ' Max';
-                    const minThresh = thresholds[minKey]; const maxThresh = thresholds[maxKey];
-                    if (minThresh !== undefined || maxThresh !== undefined) {
-                        const val = getNum(row, field);
-                        if (minThresh !== undefined && (val === null || val < minThresh)) return false;
-                        if (maxThresh !== undefined && (val === null || val > maxThresh)) return false;
-                    }
+            appState.filteredBest = appState.matches.filter(m => {
+                if (m.homeForm < minH || m.awayForm < minA) return false;
+                if (search && !m.home.toLowerCase().includes(search) && !m.away.toLowerCase().includes(search)) return false;
+                if (date && m.date !== date) return false;
+                if (month) {
+                    let mDate = new Date(m.date);
+                    if (isNaN(mDate.getTime()) || (mDate.getMonth() + 1).toString() !== month) return false;
                 }
-                
-                // Advanced Filters Check
-                let advMatch = true;
-                for (const field of advFields) {
-                    const minId = 'bm-adv-min-' + field.replace(/\s+/g, '-');
-                    const maxId = 'bm-adv-max-' + field.replace(/\s+/g, '-');
-                    const minEl = document.getElementById(minId);
-                    const maxEl = document.getElementById(maxId);
-                    if (minEl && maxEl) {
-                        const min = minEl.value; const max = maxEl.value;
-                        if (min || max) {
-                            const val = getNum(row, field);
-                            if (min && (val === null || val < parseFloat(min))) { advMatch = false; break; }
-                            if (max && (val === null || val > parseFloat(max))) { advMatch = false; break; }
-                        }
-                    }
-                }
-                if (!advMatch) return false;
-
-                if (!checkModelMatch(row, 'Prediction', 'bm-model-m1')) return false;
-                if (!checkModelMatch(row, 'Match Tip', 'bm-model-m2')) return false;
-                if (!checkModelMatch(row, 'Outcome Pred', 'bm-model-m3')) return false;
-                if (!checkModelMatch(row, 'Model Pred', 'bm-model-m4')) return false;
-
+                if (league && m.league !== league) return false;
+                if (score && m.score !== score) return false;
                 return true;
             });
-            bestPage = 1;
-            updateSummaries('best', filteredBestData);
-            renderTable('best', filteredBestData, bestPage);
+
+            appState.pages.best = 1;
+            renderTable('best');
+            updateSummary('best');
         }
 
         function resetBestMatchesFilters() {
-            document.getElementById('bm-search-team').value = '';
-            document.getElementById('bm-filter-date').value = '';
-            document.getElementById('bm-filter-month').value = '';
-            document.getElementById('bm-filter-league').value = '';
-            document.getElementById('bm-filter-prediction').value = '';
-            document.getElementById('bm-filter-correct-score').value = '';
-            clearBmAdvFilters();
-            clearBmModelFilters();
+            if (document.getElementById('bm-search-team')) document.getElementById('bm-search-team').value = '';
+            if (document.getElementById('bm-filter-date')) document.getElementById('bm-filter-date').value = '';
+            if (document.getElementById('bm-filter-month')) document.getElementById('bm-filter-month').value = '';
+            if (document.getElementById('bm-filter-league')) document.getElementById('bm-filter-league').value = '';
+            if (document.getElementById('bm-filter-correct-score')) document.getElementById('bm-filter-correct-score').value = '';
             applyBestMatchesFilters();
-        }
-        
-        // ==================== BEST TIPS LOGIC ====================
-        function calculateBestTip(row) {
-            const m1 = getVal(row, 'Prediction');
-            const m2 = getVal(row, 'Match Tip');
-            const m3 = getVal(row, 'Outcome Pred');
-            const m4 = getVal(row, 'Model Pred');
-            
-            const normalize = (pred) => {
-                if (!pred) return null;
-                const lower = pred.toLowerCase();
-                if (lower.includes('home') || lower === '1') return '1';
-                if (lower.includes('away') || lower === '2') return '2';
-                if (lower.includes('draw') || lower === 'x') return 'X';
-                if (lower.includes('over')) return 'O2.5';
-                if (lower.includes('under')) return 'U2.5';
-                return lower;
-            };
-
-            const preds = [normalize(m1), normalize(m2), normalize(m3), normalize(m4)].filter(p => p !== null);
-            if (preds.length === 0) return { tip: '-', confidence: 0 };
-
-            const counts = {};
-            preds.forEach(p => { counts[p] = (counts[p] || 0) + 1; });
-            
-            let bestPred = '-';
-            let maxCount = 0;
-            for (const [pred, count] of Object.entries(counts)) {
-                if (count > maxCount) { maxCount = count; bestPred = pred; }
-            }
-            
-            // Map back to display friendly format
-            const displayMap = { '1': 'Home Win', '2': 'Away Win', 'X': 'Draw', 'O2.5': 'Over 2.5', 'U2.5': 'Under 2.5' };
-            const finalTip = displayMap[bestPred] || bestPred.toUpperCase();
-            
-            return {
-                tip: finalTip,
-                confidence: (maxCount / 4) * 100 // Out of 4 models
-            };
         }
 
         function applyBestTipsFilters() {
-            const pred = document.getElementById('bt-filter-prediction').value.toLowerCase();
-            
-            filteredTipsData = globalData.filter(row => {
-                if (!getCommonFilters('bt-', row)) return false;
-                
-                const tipData = calculateBestTip(row);
-                // Only show high confidence tips (75% or 100%)
-                if (tipData.confidence < 75) return false;
-                
-                if (pred && tipData.tip.toLowerCase() !== pred) return false;
-                
+            let search = (document.getElementById('bt-search-team')?.value || '').toLowerCase();
+            let date = document.getElementById('bt-filter-date')?.value || '';
+            let month = document.getElementById('bt-filter-month')?.value || '';
+            let league = document.getElementById('bt-filter-league')?.value || '';
+
+            appState.filteredTips = appState.matches.filter(m => {
+                if (m.targetPick === '-' || !m.targetPick) return false;
+                if (search && !m.home.toLowerCase().includes(search) && !m.away.toLowerCase().includes(search)) return false;
+                if (date && m.date !== date) return false;
+                if (month) {
+                    let mDate = new Date(m.date);
+                    if (isNaN(mDate.getTime()) || (mDate.getMonth() + 1).toString() !== month) return false;
+                }
+                if (league && m.league !== league) return false;
                 return true;
             });
-            
-            // Sort by confidence highest first
-            filteredTipsData.sort((a, b) => calculateBestTip(b).confidence - calculateBestTip(a).confidence);
-            
-            tipsPage = 1;
-            renderTipsTable();
+
+            appState.pages.tips = 1;
+            renderTable('tips');
         }
 
         function resetBestTipsFilters() {
-            document.getElementById('bt-search-team').value = '';
-            document.getElementById('bt-filter-date').value = '';
-            document.getElementById('bt-filter-month').value = '';
-            document.getElementById('bt-filter-league').value = '';
-            document.getElementById('bt-filter-prediction').value = '';
+            if (document.getElementById('bt-search-team')) document.getElementById('bt-search-team').value = '';
+            if (document.getElementById('bt-filter-date')) document.getElementById('bt-filter-date').value = '';
+            if (document.getElementById('bt-filter-month')) document.getElementById('bt-filter-month').value = '';
+            if (document.getElementById('bt-filter-league')) document.getElementById('bt-filter-league').value = '';
             applyBestTipsFilters();
         }
 
-        function renderTipsTable() {
-            const tbody = document.getElementById('table-body-tips');
+        function renderTable(type) {
+            let list = type === 'all' ? appState.filteredAll : (type === 'best' ? appState.filteredBest : appState.filteredTips);
+            let page = appState.pages[type];
+            let size = appState.pageSize;
+            let start = (page - 1) * size;
+            let end = start + size;
+            let sliced = list.slice(start, end);
+
+            let tbodyId = type === 'all' ? 'table-body-all' : (type === 'best' ? 'table-body-best' : 'table-body-tips');
+            let tbody = document.getElementById(tbodyId);
             if (!tbody) return;
-            tbody.innerHTML = '';
-            
-            const start = (tipsPage - 1) * ROWS_PER_PAGE;
-            const end = Math.min(start + ROWS_PER_PAGE, filteredTipsData.length);
-            
-            if (filteredTipsData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500 font-semibold bg-blue-50/50">No high-confidence tips found matching criteria.</td></tr>`;
-                document.getElementById('page-info-tips').innerText = 'Showing 0-0 of 0';
+
+            if (sliced.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400 font-medium">No matches found matching the criteria.</td></tr>`;
+                document.getElementById(`page-info-${type}`).innerText = `Showing 0-0 of 0`;
                 return;
             }
 
-            for (let i = start; i < end; i++) {
-                const row = filteredTipsData[i];
-                const home = getVal(row, 'Home');
-                const away = getVal(row, 'Away');
-                const cs = getVal(row, 'Correct Score') || '-';
-                const result = getVal(row, 'Result') || '-';
-                
-                const tipData = calculateBestTip(row);
-                
-                let confColor = 'text-green-600 bg-green-50 border-green-200';
-                if (tipData.confidence === 75) confColor = 'text-blue-600 bg-blue-50 border-blue-200';
-                else if (tipData.confidence < 75) confColor = 'text-amber-600 bg-amber-50 border-amber-200';
+            let html = '';
+            sliced.forEach((m, idx) => {
+                let globalIdx = start + idx;
+                let displayPred = m.targetPick;
 
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-none';
-                
-                tr.innerHTML = `
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${home}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${away}</td>
-                    <td class="py-2.5 px-3 text-center bg-blue-50/50"><span class="font-extrabold text-blue-900">${tipData.tip}</span></td>
-                    <td class="py-2.5 px-3 text-center"><span class="font-bold border px-2 py-0.5 rounded-full text-[10px] ${confColor}">${tipData.confidence}%</span></td>
-                    <td class="py-2.5 px-3 text-center font-semibold text-slate-600">${cs}</td>
-                    <td class="py-2.5 px-3 text-center font-bold text-slate-800">${result}</td>
-                    <td class="py-2.5 px-3 text-center">
-                        <button onclick="viewDetails(${globalData.indexOf(row)})" class="text-[10px] bg-slate-900 hover:bg-slate-800 text-white font-semibold px-2 py-1 rounded transition-colors shadow-sm">Details</button>
-                    </td>
+                html += `
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-2 px-2"><div class="font-semibold text-slate-800 text-[11px]">${m.date || 'TBD'}</div><div class="text-[9px] text-slate-400 truncate max-w-[110px]">${m.league}</div></td>
+                        <td class="py-2 px-2 font-bold text-slate-900 text-[11px] truncate max-w-[120px]">${m.home}</td>
+                        <td class="py-2 px-2 font-bold text-slate-900 text-[11px] truncate max-w-[120px]">${m.away}</td>
+                        <td class="py-2 px-1.5 text-center font-extrabold text-blue-700 bg-blue-50/40 text-[11px]">${m.targetPick}</td>
+                        <td class="py-2 px-1.5 text-center font-semibold text-slate-700 bg-slate-50/40 text-[10px]">${m.confidence}</td>
+                        <td class="py-2 px-1.5 text-center font-bold text-teal-800 bg-teal-50/30 text-[10px]">${m.modelConfidence}</td>
+                        <td class="py-2 px-1.5 text-center font-semibold text-teal-900 bg-teal-50/50 text-[10px]">${m.score}</td>
+                        <td class="py-2 px-1.5 text-center font-bold text-[11px] ${getResultColor(m.result, displayPred)}">${m.result || '-'}</td>
+                        <td class="py-2 px-1.5 text-center">
+                            <button onclick="openMatchModal(${globalIdx}, '${type}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-semibold text-[10px] transition">View</button>
+                        </td>
+                    </tr>
                 `;
-                tbody.appendChild(tr);
-            }
-
-            document.getElementById('page-info-tips').innerText = `Showing ${start + 1}-${end} of ${filteredTipsData.length}`;
-            
-            const btnPrev = document.querySelector('button[onclick="nextPage(\'tips\')"]').previousElementSibling;
-            const btnNext = document.querySelector('button[onclick="nextPage(\'tips\')"]');
-            btnPrev.disabled = tipsPage === 1;
-            btnNext.disabled = end >= filteredTipsData.length;
-        }
-
-        // ==================== RENDERING & SUMMARIES ====================
-
-        function isWin(prediction, result) {
-            if (!prediction || !result || result === '-' || result === '') return false;
-            const p = prediction.toString().toLowerCase().trim();
-            const r = result.toString().toLowerCase().trim();
-            
-            if (r.includes('-') || r.includes(':')) {
-                const parts = r.includes('-') ? r.split('-') : r.split(':');
-                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                    const h = parseInt(parts[0]); const a = parseInt(parts[1]);
-                    let actualOutcome = 'x'; if(h>a) actualOutcome = '1'; else if (h<a) actualOutcome = '2';
-                    
-                    if (p === '1' || p === 'home' || p === 'home win') return actualOutcome === '1';
-                    if (p === '2' || p === 'away' || p === 'away win') return actualOutcome === '2';
-                    if (p === 'x' || p === 'draw') return actualOutcome === 'x';
-                    
-                    if (p === '1x' || p === 'home or draw') return actualOutcome === '1' || actualOutcome === 'x';
-                    if (p === 'x2' || p === 'draw or away') return actualOutcome === '2' || actualOutcome === 'x';
-                    if (p === '12' || p === 'home or away') return actualOutcome === '1' || actualOutcome === '2';
-                    
-                    if (p === 'o2.5' || p === 'over 2.5') return (h+a) > 2.5;
-                    if (p === 'u2.5' || p === 'under 2.5') return (h+a) < 2.5;
-                    if (p === 'btts' || p === 'gg') return (h>0 && a>0);
-                    if (p === 'ng') return (h===0 || a===0);
-                }
-            }
-            return p === r; // Fallback exact match
-        }
-
-        function updateSummaries(type, data) {
-            const models = [
-                { id: `summary-${type}-m1`, col: 'Prediction' },
-                { id: `summary-${type}-m2`, col: 'Match Tip' },
-                { id: `summary-${type}-m3`, col: 'Outcome Pred' },
-                { id: `summary-${type}-m4`, col: 'Model Pred' }
-            ];
-
-            models.forEach(m => {
-                let wins = 0, total = 0;
-                data.forEach(row => {
-                    const pred = getVal(row, m.col);
-                    const res = getVal(row, 'Result');
-                    if (pred && res && res !== '-') {
-                        total++;
-                        if (isWin(pred, res)) wins++;
-                    }
-                });
-                const el = document.getElementById(m.id);
-                if (el) {
-                    const pct = total > 0 ? ((wins / total) * 100).toFixed(1) : 0;
-                    el.innerText = `${wins}/${total} (${pct}%)`;
-                    // Color code based on percentage
-                    if (total > 0) {
-                        el.className = `text-sm font-extrabold ${pct >= 70 ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`;
-                    } else {
-                        el.className = 'text-sm font-extrabold text-slate-400';
-                    }
-                }
             });
+
+            tbody.innerHTML = html;
+            document.getElementById(`page-info-${type}`).innerText = `Showing ${start + 1}-${Math.min(end, list.length)} of ${list.length}`;
         }
 
-        function renderTable(type, data, page) {
-            const tbody = document.getElementById(`table-body-${type}`);
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            
-            const start = (page - 1) * ROWS_PER_PAGE;
-            const end = Math.min(start + ROWS_PER_PAGE, data.length);
-            
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500 font-semibold bg-slate-50">No matches found matching criteria.</td></tr>`;
-                document.getElementById(`page-info-${type}`).innerText = 'Showing 0-0 of 0';
-                return;
-            }
+        function getResultColor(result, pred) {
+            if (!result || result === '-' || !pred || pred === '-') return 'text-slate-500';
+            return result.trim().toUpperCase() === pred.trim().toUpperCase() ? 'text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded' : 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded';
+        }
 
-            for (let i = start; i < end; i++) {
-                const row = data[i];
-                const globalIndex = globalData.indexOf(row);
-                const home = getVal(row, 'Home');
-                const away = getVal(row, 'Away');
-                const m1 = getVal(row, 'Prediction') || '-';
-                const m2 = getVal(row, 'Match Tip') || '-';
-                const m3 = getVal(row, 'Outcome Pred') || '-';
-                const m4 = getVal(row, 'Model Pred') || '-';
-                const cs = getVal(row, 'Correct Score') || '-';
-                const result = getVal(row, 'Result') || '-';
-
-                const tr = document.createElement('tr');
-                const isFinished = result && result !== '-';
-                
-                tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-none';
-                if (type === 'best') tr.className = 'hover:bg-emerald-50 transition-colors border-b border-emerald-50 last:border-none';
-
-                const renderCell = (pred, res, finished, defaultClasses) => {
-                    if (!finished) return `<td class="py-2.5 px-3 text-center ${defaultClasses} font-semibold">${pred}</td>`;
-                    const won = isWin(pred, res);
-                    const color = won ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100';
-                    return `<td class="py-2.5 px-3 text-center ${defaultClasses}"><span class="px-2 py-0.5 rounded font-bold text-[11px] ${color}">${pred}</span></td>`;
-                };
-
-                tr.innerHTML = `
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${home}</td>
-                    <td class="py-2.5 px-3.5 font-bold text-slate-800">${away}</td>
-                    ${renderCell(m1, result, isFinished, 'bg-slate-50/50')}
-                    ${renderCell(m2, result, isFinished, '')}
-                    ${renderCell(m3, result, isFinished, 'bg-slate-50/50')}
-                    ${renderCell(m4, result, isFinished, '')}
-                    <td class="py-2.5 px-3 text-center font-semibold text-slate-600 bg-teal-50/30">${cs}</td>
-                    <td class="py-2.5 px-3 text-center font-bold text-slate-800">${result}</td>
-                    <td class="py-2.5 px-3 text-center">
-                        <button onclick="viewDetails(${globalIndex})" class="text-[10px] bg-slate-900 hover:bg-slate-800 text-white font-semibold px-2 py-1 rounded transition-colors shadow-sm">Details</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            }
-
-            document.getElementById(`page-info-${type}`).innerText = `Showing ${start + 1}-${end} of ${data.length}`;
-            
-            const btnPrev = document.querySelector(`button[onclick="prevPage('${type}')"]`);
-            const btnNext = document.querySelector(`button[onclick="nextPage('${type}')"]`);
-            if (btnPrev && btnNext) {
-                btnPrev.disabled = page === 1;
-                btnNext.disabled = end >= data.length;
+        function nextPage(type) {
+            let list = type === 'all' ? appState.filteredAll : (type === 'best' ? appState.filteredBest : appState.filteredTips);
+            if (appState.pages[type] * appState.pageSize < list.length) {
+                appState.pages[type]++;
+                renderTable(type);
             }
         }
 
         function prevPage(type) {
-            if (type === 'all' && allPage > 1) { allPage--; renderTable('all', filteredAllData, allPage); }
-            else if (type === 'best' && bestPage > 1) { bestPage--; renderTable('best', filteredBestData, bestPage); }
-            else if (type === 'tips' && tipsPage > 1) { tipsPage--; renderTipsTable(); }
-            else if (type === 'todays-best' && todaysBestPage > 1) { todaysBestPage--; renderTodaysBestTable(); }
-        }
-        function nextPage(type) {
-            if (type === 'all' && allPage * ROWS_PER_PAGE < filteredAllData.length) { allPage++; renderTable('all', filteredAllData, allPage); }
-            else if (type === 'best' && bestPage * ROWS_PER_PAGE < filteredBestData.length) { bestPage++; renderTable('best', filteredBestData, bestPage); }
-            else if (type === 'tips' && tipsPage * ROWS_PER_PAGE < filteredTipsData.length) { tipsPage++; renderTipsTable(); }
-            else if (type === 'todays-best' && todaysBestPage * TB_ROWS_PER_PAGE < filteredTodaysBestData.length) { todaysBestPage++; renderTodaysBestTable(); }
+            if (appState.pages[type] > 1) {
+                appState.pages[type]--;
+                renderTable(type);
+            }
         }
 
-        function viewDetails(index) {
-            const row = globalData[index];
-            if (!row) return;
-
-            document.getElementById('modal-subtitle').innerText = getVal(row, 'League');
-            document.getElementById('modal-title').innerText = `${getVal(row, 'Home')} vs ${getVal(row, 'Away')}`;
-
-            const content = document.getElementById('modal-content');
-            content.innerHTML = '';
-
-            const renderGroup = (title, keys) => {
-                let html = `<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-800 border-b pb-2 mb-3 text-xs uppercase tracking-wider">${title}</h4><div class="space-y-2">`;
-                keys.forEach(k => {
-                    const val = getVal(row, k);
-                    if (val) html += `<div class="flex justify-between items-center text-xs"><span class="text-slate-500 font-medium">${k}</span><span class="font-bold text-slate-800 text-right">${val}</span></div>`;
-                });
-                html += `</div></div>`;
-                return html;
-            };
-
-            content.innerHTML += renderGroup("Predictions", ["Prediction", "Match Tip", "Outcome Pred", "Model Pred", "Correct Score", "Prediction Likely"]);
-            content.innerHTML += renderGroup("Stats Overview", ["Home Form", "Away Form", "Home Form Rate", "Away Form Rate", "Home Power", "Away Power", "Confidence %"]);
-            content.innerHTML += renderGroup("Goals Averages", ["Home Scored Avg", "Home Conceded Avg", "Away Scored Avg", "Away Conceded Avg", "Scored Difference", "Conceded Difference"]);
-            content.innerHTML += renderGroup("League Position", ["Home Position", "Away Position", "Position Difference"]);
-            content.innerHTML += renderGroup("Form & History", ["Form Difference", "H2H Home Wins", "H2H Draw", "H2H Away Wins", "H2H Difference"]);
-            content.innerHTML += renderGroup("Match Status", ["Date", "Result", "Match outcome category"]);
-
-            document.getElementById('view-modal').classList.remove('hidden');
-            document.getElementById('view-modal').classList.add('flex');
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).classList.add('hidden');
-            document.getElementById(id).classList.remove('flex');
-        }
-
-        // ==================== ADVANCED FILTERS MODALS ====================
-        function generateAdvFiltersUI() {
-            const createGrid = (prefix) => {
-                let html = '';
-                advFields.forEach(field => {
-                    const idMin = `${prefix}adv-min-${field.replace(/\s+/g, '-')}`;
-                    const idMax = `${prefix}adv-max-${field.replace(/\s+/g, '-')}`;
-                    html += `
-                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                            <label class="block font-bold text-slate-700 mb-2 truncate" title="${field}">${field}</label>
-                            <div class="flex gap-2">
-                                <input type="number" step="any" id="${idMin}" placeholder="Min" class="w-full border rounded-lg px-2 py-1.5 text-xs bg-slate-50">
-                                <input type="number" step="any" id="${idMax}" placeholder="Max" class="w-full border rounded-lg px-2 py-1.5 text-xs bg-slate-50">
-                            </div>
-                        </div>
-                    `;
-                });
-                return html;
-            };
-
-            document.getElementById('adv-filter-grid').innerHTML = createGrid('');
-            document.getElementById('bm-adv-filter-grid').innerHTML = createGrid('bm-');
-            document.getElementById('an-adv-filter-grid').innerHTML = createGrid('an-');
-        }
-
-        function openAdvFilters() { document.getElementById('adv-filter-modal').classList.remove('hidden'); document.getElementById('adv-filter-modal').classList.add('flex'); }
-        function closeAdvFilters() { document.getElementById('adv-filter-modal').classList.add('hidden'); document.getElementById('adv-filter-modal').classList.remove('flex'); }
-        function applyAdvFilters() { closeAdvFilters(); applyAllMatchesFilters(); }
-        function clearAdvFilters() { advFields.forEach(f => { const s = f.replace(/\s+/g, '-'); const min = document.getElementById('adv-min-'+s); const max = document.getElementById('adv-max-'+s); if(min) min.value = ''; if(max) max.value = ''; }); }
-
-        function openBmAdvFilters() { document.getElementById('bm-adv-filter-modal').classList.remove('hidden'); document.getElementById('bm-adv-filter-modal').classList.add('flex'); }
-        function closeBmAdvFilters() { document.getElementById('bm-adv-filter-modal').classList.add('hidden'); document.getElementById('bm-adv-filter-modal').classList.remove('flex'); }
-        function applyBmAdvFilters() { closeBmAdvFilters(); applyBestMatchesFilters(); }
-        function clearBmAdvFilters() { advFields.forEach(f => { const s = f.replace(/\s+/g, '-'); const min = document.getElementById('bm-adv-min-'+s); const max = document.getElementById('bm-adv-max-'+s); if(min) min.value = ''; if(max) max.value = ''; }); }
-
-        function openAnAdvFilters() { document.getElementById('an-adv-filter-modal').classList.remove('hidden'); document.getElementById('an-adv-filter-modal').classList.add('flex'); }
-        function closeAnAdvFilters() { document.getElementById('an-adv-filter-modal').classList.add('hidden'); document.getElementById('an-adv-filter-modal').classList.remove('flex'); }
-        function applyAnAdvFilters() { closeAnAdvFilters(); applyAnalysisFilters(); }
-        function clearAnAdvFilters() { advFields.forEach(f => { const s = f.replace(/\s+/g, '-'); const min = document.getElementById('an-adv-min-'+s); const max = document.getElementById('an-adv-max-'+s); if(min) min.value = ''; if(max) max.value = ''; }); }
-
-        // ==================== MODEL OVERRIDE MODALS ====================
-        function openAllModelFilters() { document.getElementById('all-model-filter-modal').classList.remove('hidden'); document.getElementById('all-model-filter-modal').classList.add('flex'); }
-        function closeAllModelFilters() { document.getElementById('all-model-filter-modal').classList.add('hidden'); document.getElementById('all-model-filter-modal').classList.remove('flex'); }
-        function applyAllModelFilters() { closeAllModelFilters(); applyAllMatchesFilters(); }
-        function clearAllModelFilters() { ['m1','m2','m3','m4'].forEach(id => { const el = document.getElementById('all-model-'+id); if(el) el.value = ''; }); }
-
-        function openBmModelFilters() { document.getElementById('bm-model-filter-modal').classList.remove('hidden'); document.getElementById('bm-model-filter-modal').classList.add('flex'); }
-        function closeBmModelFilters() { document.getElementById('bm-model-filter-modal').classList.add('hidden'); document.getElementById('bm-model-filter-modal').classList.remove('flex'); }
-        function applyBmModelFilters() { closeBmModelFilters(); applyBestMatchesFilters(); }
-        function clearBmModelFilters() { ['m1','m2','m3','m4'].forEach(id => { const el = document.getElementById('bm-model-'+id); if(el) el.value = ''; }); }
-
-        // ==================== ANALYSIS LOGIC ====================
-        function applyAnalysisFilters() {
-            const pred = document.getElementById('an-filter-prediction').value.toLowerCase();
-            const cs = document.getElementById('an-filter-correct-score').value.toLowerCase();
-            const applyThresh = document.getElementById('an-apply-thresholds').checked;
-
-            currentAnalysisData = globalData.filter(row => {
-                if (!getCommonFilters('an-', row)) return false;
-
-                if (pred) {
-                    const m1 = getVal(row, 'Prediction').toLowerCase();
-                    const m2 = getVal(row, 'Match Tip').toLowerCase();
-                    const m3 = getVal(row, 'Outcome Pred').toLowerCase();
-                    const m4 = getVal(row, 'Model Pred').toLowerCase();
-                    if (m1 !== pred && m2 !== pred && m3 !== pred && m4 !== pred) return false;
-                }
-
-                const rCs = getVal(row, 'Correct Score').toLowerCase();
-                if (cs && rCs !== cs) return false;
-
-                if (applyThresh) {
-                    for (const field of settingsFields) {
-                        const minKey = field + ' Min'; const maxKey = field + ' Max';
-                        const minThresh = thresholds[minKey]; const maxThresh = thresholds[maxKey];
-                        if (minThresh !== undefined || maxThresh !== undefined) {
-                            const val = getNum(row, field);
-                            if (minThresh !== undefined && (val === null || val < minThresh)) return false;
-                            if (maxThresh !== undefined && (val === null || val > maxThresh)) return false;
-                        }
-                    }
-                }
-
-                let advMatch = true;
-                for (const field of advFields) {
-                    const minId = 'an-adv-min-' + field.replace(/\s+/g, '-');
-                    const maxId = 'an-adv-max-' + field.replace(/\s+/g, '-');
-                    const minEl = document.getElementById(minId);
-                    const maxEl = document.getElementById(maxId);
-                    if (minEl && maxEl) {
-                        const min = minEl.value; const max = maxEl.value;
-                        if (min || max) {
-                            const val = getNum(row, field);
-                            if (min && (val === null || val < parseFloat(min))) { advMatch = false; break; }
-                            if (max && (val === null || val > parseFloat(max))) { advMatch = false; break; }
-                        }
-                    }
-                }
-                if (!advMatch) return false;
-
-                return true;
-            });
-            renderAnalysisTables();
-        }
-
-        function resetAnalysisFilters() {
-            document.getElementById('an-search-team').value = '';
-            document.getElementById('an-filter-date').value = '';
-            document.getElementById('an-filter-month').value = '';
-            document.getElementById('an-filter-league').value = '';
-            document.getElementById('an-filter-prediction').value = '';
-            document.getElementById('an-filter-correct-score').value = '';
-            document.getElementById('an-apply-thresholds').checked = false;
-            clearAnAdvFilters();
-            applyAnalysisFilters();
-        }
-
-        function renderAnalysisTables() {
-            const models = [
-                { id: 'm1', name: 'Model 1 (Prediction)', col: 'Prediction' },
-                { id: 'm2', name: 'Model 2 (Match Tip)', col: 'Match Tip' },
-                { id: 'm3', name: 'Model 3 (Outcome Pred)', col: 'Outcome Pred' },
-                { id: 'm4', name: 'Model 4 (Model Pred)', col: 'Model Pred' }
-            ];
-
-            const calcStats = (data, outcomeFilter = null) => {
-                const stats = models.map(m => ({ ...m, wins: 0, total: 0 }));
-                data.forEach(row => {
-                    const res = getVal(row, 'Result');
-                    if (!res || res === '-') return;
-
-                    let actualOutcome = null;
-                    if (res.includes('-') || res.includes(':')) {
-                        const parts = res.includes('-') ? res.split('-') : res.split(':');
-                        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                            const h = parseInt(parts[0]); const a = parseInt(parts[1]);
-                            if (h > a) actualOutcome = '1';
-                            else if (h < a) actualOutcome = '2';
-                            else actualOutcome = 'x';
-                        }
-                    }
-
-                    stats.forEach(m => {
-                        const pred = getVal(row, m.col);
-                        if (!pred) return;
-                        
-                        if (outcomeFilter) {
-                            if (actualOutcome === outcomeFilter) {
-                                m.total++;
-                                if (isWin(pred, res)) m.wins++;
-                            }
-                        } else {
-                            m.total++;
-                            if (isWin(pred, res)) m.wins++;
-                        }
-                    });
-                });
-                
-                stats.forEach(m => {
-                    m.rate = m.total > 0 ? m.wins / m.total : 0;
-                    m.score = (m.wins * 2) - (m.total - m.wins); 
-                });
-                return stats.sort((a, b) => b.score - a.score || b.rate - a.rate); 
-            };
-
-            const renderTbody = (id, stats) => {
-                const tbody = document.getElementById(id);
-                if (!tbody) return;
-                tbody.innerHTML = '';
-                stats.forEach((s, idx) => {
-                    const pct = (s.rate * 100).toFixed(1);
-                    const isTop = idx === 0 && s.total > 0;
-                    const rowCls = isTop ? 'bg-amber-50 font-semibold border-l-4 border-l-amber-500' : 'border-b border-slate-100 last:border-none hover:bg-slate-50';
-                    tbody.innerHTML += `
-                        <tr class="${rowCls} transition-colors">
-                            <td class="py-2.5 px-3">
-                                ${isTop ? '<span class="text-amber-500 mr-1">★</span>1st' : (idx+1) + ['st','nd','rd','th'][Math.min(idx, 3)]}
-                            </td>
-                            <td class="py-2.5 px-3 ${isTop ? 'font-bold text-slate-800' : 'font-medium text-slate-700'}">${s.name}</td>
-                            <td class="py-2.5 px-3 text-center">${s.wins} / ${s.total}</td>
-                            <td class="py-2.5 px-3 text-center font-bold ${s.rate >= 0.6 ? 'text-green-600' : s.rate >= 0.4 ? 'text-amber-600' : 'text-red-600'}">${pct}%</td>
-                            <td class="py-2.5 px-3 text-center font-mono ${s.score > 0 ? 'text-green-600' : s.score < 0 ? 'text-red-500' : 'text-slate-500'}">${s.score > 0 ? '+'+s.score : s.score}</td>
-                        </tr>
-                    `;
-                });
-                if(stats.every(s => s.total === 0)) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-400">No data available for this criteria</td></tr>`;
-                }
-            };
-
-            renderTbody('analysis-overall-tbody', calcStats(currentAnalysisData));
-            renderTbody('analysis-home-tbody', calcStats(currentAnalysisData, '1'));
-            renderTbody('analysis-draw-tbody', calcStats(currentAnalysisData, 'x'));
-            renderTbody('analysis-away-tbody', calcStats(currentAnalysisData, '2'));
-        }
-
-        // ==================== NEW ROI LOGIC ====================
-        function calculateROI() {
-            const modelKey = document.getElementById('roi-model').value;
-            const stakeInput = parseFloat(document.getElementById('roi-stake').value) || 10;
+        function updateSummary(type) {
+            let list = type === 'all' ? appState.filteredAll : appState.filteredBest;
+            let total = list.length;
+            let settled = list.filter(m => m.result && m.result !== '-');
             
-            const modelCols = {
-                'm1': 'Prediction',
-                'm2': 'Match Tip',
-                'm3': 'Outcome Pred',
-                'm4': 'Model Pred'
-            };
-            const colName = modelCols[modelKey];
-
-            // Filter data based on sidebar
-            let roiData = globalData.filter(row => {
-                if (!getCommonFilters('roi-', row)) return false;
-                const res = getVal(row, 'Result');
-                if (!res || res === '-') return false; // Must be finished
-                return true;
+            let predCorr = 0, targetCorr = 0;
+            settled.forEach(m => {
+                let res = m.result.trim().toUpperCase();
+                if (m.modelPrediction && m.modelPrediction !== '-' && m.modelPrediction.trim().toUpperCase() === res) predCorr++;
+                if (m.targetPick && m.targetPick !== '-' && m.targetPick.trim().toUpperCase() === res) targetCorr++;
             });
 
-            // Sort by date descending
-            roiData.sort((a, b) => new Date(getVal(b, 'Date')) - new Date(getVal(a, 'Date')));
-
-            let totalBets = 0;
-            let wins = 0;
-            let losses = 0;
-            let totalStake = 0;
-            let totalReturn = 0;
-            
-            const tbody = document.getElementById('table-body-roi');
-            tbody.innerHTML = '';
-
-            // Extract odds based on prediction
-            const getOdds = (row, pred) => {
-                if (!pred) return 1.0;
-                const p = pred.toLowerCase().trim();
-                let oddsVal = '';
-                if (p === '1' || p.includes('home')) oddsVal = getVal(row, 'Home Odds');
-                else if (p === 'x' || p.includes('draw')) oddsVal = getVal(row, 'Draw Odds');
-                else if (p === '2' || p.includes('away')) oddsVal = getVal(row, 'Away Odds');
-                
-                const oddsNum = parseFloat(oddsVal);
-                return isNaN(oddsNum) || oddsNum <= 0 ? 1.5 : oddsNum; // Fallback odds if missing
-            };
-
-            roiData.forEach(row => {
-                const pred = getVal(row, colName);
-                if (!pred) return;
-                
-                const res = getVal(row, 'Result');
-                const odds = getOdds(row, pred);
-                const won = isWin(pred, res);
-                
-                totalBets++;
-                totalStake += stakeInput;
-                
-                let profitLoss = -stakeInput; // assume loss initially
-                if (won) {
-                    wins++;
-                    const returns = stakeInput * odds;
-                    totalReturn += returns;
-                    profitLoss = returns - stakeInput;
-                } else {
-                    losses++;
-                }
-
-                // Render Row
-                const pColor = won ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
-                const plColor = profitLoss > 0 ? 'text-green-600' : 'text-red-600';
-                const plSign = profitLoss > 0 ? '+' : '';
-                
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-slate-100 hover:bg-orange-50/30 transition-colors';
-                tr.innerHTML = `
-                    <td class="py-2 px-3 whitespace-nowrap">${getVal(row, 'Date')}</td>
-                    <td class="py-2 px-3 font-bold text-slate-800">${getVal(row, 'Home')} v ${getVal(row, 'Away')}</td>
-                    <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${pColor}">${pred}</span></td>
-                    <td class="py-2 px-3 text-center font-mono">@${odds.toFixed(2)}</td>
-                    <td class="py-2 px-3 text-center font-bold text-slate-700">${res}</td>
-                    <td class="py-2 px-3 text-center">$${stakeInput.toFixed(2)}</td>
-                    <td class="py-2 px-3 text-right font-bold ${plColor}">${plSign}$${profitLoss.toFixed(2)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            if (totalBets === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500 font-semibold bg-slate-50">No finished matches found for selected criteria.</td></tr>`;
+            function calc(corr, tot) {
+                if (tot === 0) return `0/0 (0.0%)`;
+                return `${corr}/${tot} (${((corr/tot)*100).toFixed(1)}%)`;
             }
 
-            const netProfit = totalReturn - totalStake;
-            const roiPct = totalStake > 0 ? (netProfit / totalStake) * 100 : 0;
+            let leaguesCount = new Set(list.map(m => m.league)).size;
 
-            document.getElementById('roi-total-bets').innerText = totalBets;
-            document.getElementById('roi-win-loss').innerText = `${wins} / ${losses}`;
-            document.getElementById('roi-total-stake').innerText = `$${totalStake.toFixed(2)}`;
-            
-            const npEl = document.getElementById('roi-net-profit');
-            npEl.innerText = `${netProfit > 0 ? '+' : ''}$${netProfit.toFixed(2)}`;
-            npEl.className = `text-lg font-black block ${netProfit > 0 ? 'text-green-600' : netProfit < 0 ? 'text-red-600' : 'text-slate-800'}`;
-            
-            const pctEl = document.getElementById('roi-percentage');
-            pctEl.innerText = `${roiPct > 0 ? '+' : ''}${roiPct.toFixed(2)}%`;
-            pctEl.className = `text-xl font-black block ${roiPct > 0 ? 'text-green-400' : roiPct < 0 ? 'text-red-400' : 'text-white'}`;
+            if (type === 'all') {
+                document.getElementById('summary-all-total').innerText = total;
+                document.getElementById('summary-all-acc').innerText = calc(predCorr, settled.length);
+                document.getElementById('summary-all-target').innerText = calc(targetCorr, settled.length);
+                document.getElementById('summary-all-leagues').innerText = leaguesCount;
+            } else {
+                document.getElementById('summary-best-total').innerText = total;
+                document.getElementById('summary-best-acc').innerText = calc(predCorr, settled.length);
+                document.getElementById('summary-best-target').innerText = calc(targetCorr, settled.length);
+                
+                let confSum = 0, confCount = 0;
+                list.forEach(m => {
+                    let val = parseFloat(m.modelConfidence);
+                    if (!isNaN(val)) { confSum += val; confCount++; }
+                });
+                let avgConf = confCount > 0 ? (confSum / confCount).toFixed(1) + '%' : '0.0%';
+                document.getElementById('summary-best-conf').innerText = avgConf;
+            }
         }
 
-        function resetROIFilters() {
-            document.getElementById('roi-model').value = 'm1';
-            document.getElementById('roi-stake').value = '10';
-            document.getElementById('roi-date').value = '';
-            document.getElementById('roi-month').value = '';
-            document.getElementById('roi-league').value = '';
-            calculateROI();
-        }
-
-        // ==================== SETTINGS LOGIC ====================
-        function generateSettingsUI() {
-            const grid = document.getElementById('settings-grid');
-            if(!grid) return;
+        function renderAnalytics() {
+            let matches = appState.matches;
+            let settled = matches.filter(m => m.result && m.result !== '-');
             
-            let html = '';
-            settingsFields.forEach(field => {
-                html += `
-                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2">
-                        <label class="font-bold text-slate-700 text-xs uppercase tracking-wider truncate" title="${field}">${field}</label>
-                        <div class="flex items-center gap-2">
-                            <div class="flex-1">
-                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Min</span>
-                                <input type="number" step="any" id="set-min-${field.replace(/\s+/g, '-')}" class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                            </div>
-                            <div class="flex-1">
-                                <span class="text-[10px] text-slate-400 font-semibold block mb-0.5">Max</span>
-                                <input type="number" step="any" id="set-max-${field.replace(/\s+/g, '-')}" class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-                            </div>
-                        </div>
+            document.getElementById('stat-total-matches').innerText = matches.length;
+            document.getElementById('stat-settled-matches').innerText = settled.length;
+            
+            let leagues = [...new Set(matches.map(m => m.league))].filter(Boolean);
+            document.getElementById('stat-leagues-count').innerText = leagues.length;
+
+            let predCorr = 0, targetCorr = 0;
+            settled.forEach(m => {
+                let res = m.result.trim().toUpperCase();
+                if (m.modelPrediction && m.modelPrediction !== '-' && m.modelPrediction.trim().toUpperCase() === res) predCorr++;
+                if (m.targetPick && m.targetPick !== '-' && m.targetPick.trim().toUpperCase() === res) targetCorr++;
+            });
+
+            let accPred = settled.length > 0 ? (predCorr / settled.length) * 100 : 0;
+            let accTarget = settled.length > 0 ? (targetCorr / settled.length) * 100 : 0;
+
+            document.getElementById('stat-avg-accuracy').innerText = accPred.toFixed(1) + '%';
+
+            let barsContainer = document.getElementById('analytics-bars');
+            if (barsContainer) {
+                barsContainer.innerHTML = `
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold mb-1"><span>Model Prediction Accuracy</span><span>${accPred.toFixed(1)}%</span></div>
+                        <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: ${accPred}%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold mb-1"><span>85% Target Pick Win Rate</span><span>${accTarget.toFixed(1)}%</span></div>
+                        <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-teal-600 h-2.5 rounded-full" style="width: ${accTarget}%"></div></div>
                     </div>
                 `;
-            });
-            grid.innerHTML = html;
+            }
         }
 
-        function populateSettingsUI() {
-            settingsFields.forEach(field => {
-                const sField = field.replace(/\s+/g, '-');
-                const minId = `set-min-${sField}`;
-                const maxId = `set-max-${sField}`;
-                
-                const minEl = document.getElementById(minId);
-                const maxEl = document.getElementById(maxId);
-                
-                if(minEl) minEl.value = thresholds[field + ' Min'] !== undefined ? thresholds[field + ' Min'] : '';
-                if(maxEl) maxEl.value = thresholds[field + ' Max'] !== undefined ? thresholds[field + ' Max'] : '';
+        function renderROI() {
+            let stake = parseFloat(document.getElementById('roi-stake')?.value) || 10;
+            let modelKey = document.getElementById('roi-model')?.value || 'targetPick';
+            let settled = appState.matches.filter(m => m.result && m.result !== '-');
+
+            let totalStaked = 0;
+            let totalReturned = 0;
+            let html = '';
+
+            settled.forEach(m => {
+                let pred = m[modelKey];
+                if (!pred || pred === '-') return;
+                totalStaked += stake;
+                let won = pred.trim().toUpperCase() === m.result.trim().toUpperCase();
+                let assumedOdds = 1.95;
+                let returned = won ? (stake * assumedOdds) : 0;
+                totalReturned += returned;
+                let profit = returned - stake;
+
+                html += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 font-semibold">${m.home} vs ${m.away}</td>
+                        <td class="p-3 font-bold text-blue-800">${pred}</td>
+                        <td class="p-3 text-center">${assumedOdds}</td>
+                        <td class="p-3 text-center font-bold ${won ? 'text-emerald-600' : 'text-rose-600'}">${won ? 'Won' : 'Lost'}</td>
+                        <td class="p-3 text-right font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}</td>
+                    </tr>
+                `;
             });
+
+            if (document.getElementById('roi-total-staked')) document.getElementById('roi-total-staked').innerText = `$${totalStaked.toFixed(2)}`;
+            if (document.getElementById('roi-total-returned')) document.getElementById('roi-total-returned').innerText = `$${totalReturned.toFixed(2)}`;
+            let netProfit = totalReturned - totalStaked;
+            let roiPct = totalStaked > 0 ? (netProfit / totalStaked) * 100 : 0;
+            if (document.getElementById('roi-net-profit')) document.getElementById('roi-net-profit').innerText = `${netProfit >= 0 ? '+' : ''}$${netProfit.toFixed(2)} (${roiPct.toFixed(1)}%)`;
+            if (document.getElementById('roi-table-body')) document.getElementById('roi-table-body').innerHTML = html || `<tr><td colspan="5" class="text-center py-6 text-slate-400">No settled matches available for ROI calculation.</td></tr>`;
         }
 
-        function applySettingsLocally() {
-            thresholds = {};
-            settingsFields.forEach(field => {
-                const sField = field.replace(/\s+/g, '-');
-                const minVal = document.getElementById(`set-min-${sField}`).value;
-                const maxVal = document.getElementById(`set-max-${sField}`).value;
-                
-                if (minVal !== '') thresholds[field + ' Min'] = parseFloat(minVal);
-                if (maxVal !== '') thresholds[field + ' Max'] = parseFloat(maxVal);
-            });
-            
-            localStorage.setItem('datacompas_settings', JSON.stringify(thresholds));
-            
-            // Reapply filters to update lists immediately
-            applyBestMatchesFilters();
-            if(document.getElementById('tab-analysis').classList.contains('active') && document.getElementById('an-apply-thresholds').checked) {
-                applyAnalysisFilters();
+        function renderTodaysBest() {
+            let container = document.getElementById('todays-best-container');
+            if (!container) return;
+
+            let topMatches = appState.matches.slice(0, 9);
+            if (topMatches.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">No matches available.</div>`;
+                return;
             }
 
-            const btn = document.querySelector('button[onclick="applySettingsLocally()"]');
-            const orig = btn.innerText;
-            btn.innerText = 'Saved!';
-            btn.classList.add('bg-green-600');
-            setTimeout(() => {
-                btn.innerText = orig;
-                btn.classList.remove('bg-green-600');
-            }, 1500);
+            container.innerHTML = topMatches.map(m => `
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-full">${m.league}</span>
+                            <span class="text-[11px] text-slate-500 font-medium">${m.date || 'Upcoming'}</span>
+                        </div>
+                        <h4 class="font-extrabold text-slate-900 text-sm mb-3">${m.home} vs ${m.away}</h4>
+                    </div>
+                    <div class="space-y-2 pt-3 border-t border-slate-200 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">85% Target Pick:</span>
+                            <span class="font-bold text-blue-700">${m.targetPick}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Confidence %:</span>
+                            <span class="font-bold text-slate-800">${m.confidence}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">85% Model Confidence:</span>
+                            <span class="font-bold text-teal-800">${m.modelConfidence}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Correct Score:</span>
+                            <span class="font-bold text-purple-700">${m.score}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
-        
-        function resetSettingsDefaults() {
-            if(confirm("Clear all local setting overrides?")) {
-                localStorage.removeItem('datacompas_settings');
-                thresholds = {};
-                populateSettingsUI();
-                applyBestMatchesFilters();
+
+        function openMatchModal(index, type) {
+            let list = type === 'all' ? appState.filteredAll : (type === 'best' ? appState.filteredBest : appState.filteredTips);
+            let m = list[index];
+            if (!m) return;
+
+            document.getElementById('modal-title').innerText = `${m.home} vs ${m.away}`;
+            document.getElementById('modal-content').innerHTML = `
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div><span class="text-slate-400 block font-bold text-[10px]">LEAGUE</span><span class="font-semibold text-slate-800">${m.league}</span></div>
+                    <div><span class="text-slate-400 block font-bold text-[10px]">DATE</span><span class="font-semibold text-slate-800">${m.date || 'TBD'}</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div><span class="text-slate-400 block font-bold text-[10px]">85% TARGET PICK</span><span class="font-extrabold text-blue-700 text-sm">${m.targetPick}</span></div>
+                    <div><span class="text-slate-400 block font-bold text-[10px]">CONFIDENCE %</span><span class="font-bold text-slate-800 text-sm">${m.confidence}</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div><span class="text-slate-400 block font-bold text-[10px]">85% MODEL CONFIDENCE %</span><span class="text-sm font-extrabold text-teal-800">${m.modelConfidence}</span></div>
+                    <div><span class="text-slate-400 block font-bold text-[10px]">CORRECT SCORE</span><span class="font-bold text-teal-800 text-sm">${m.score}</span></div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span class="text-slate-400 block font-bold text-[10px]">ACTUAL RESULT</span><span class="font-bold text-slate-900 text-sm">${m.result || 'Pending'}</span>
+                </div>
+            `;
+            document.getElementById('match-modal').classList.remove('hidden');
+        }
+
+        function closeMatchModal() {
+            document.getElementById('match-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            let csvInput = document.getElementById('settings-csv-url')?.value.trim();
+            let minH = parseFloat(document.getElementById('setting-min-home-form')?.value) || 0;
+            let minA = parseFloat(document.getElementById('setting-min-away-form')?.value) || 0;
+
+            if (csvInput) {
+                appState.csvUrl = csvInput;
+                localStorage.setItem('dc360_csv_url', csvInput);
             }
+            appState.settings.minHomeForm = minH;
+            appState.settings.minAwayForm = minA;
+            localStorage.setItem('dc360_min_home_form', minH);
+            localStorage.setItem('dc360_min_away_form', minA);
+
+            alertBox("Settings saved successfully!");
+            fetchAndParseCSV();
+        }
+
+        function saveAndReloadCSV() {
+            saveSettings();
+        }
+
+        function showLoader(show) {
+            let loader = document.getElementById('loader');
+            if (!loader) return;
+            if (show) {
+                loader.classList.remove('hidden');
+            } else {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function showError(msg) {
+            let errBar = document.getElementById('error-message');
+            let errText = document.getElementById('error-text');
+            if (errBar && errText) {
+                errText.innerText = msg;
+                errBar.classList.remove('hidden');
+            }
+        }
+
+        function hideError() {
+            let errBar = document.getElementById('error-message');
+            if (errBar) errBar.classList.add('hidden');
+        }
+
+        function alertBox(msg) {
+            showError(msg);
+            setTimeout(() => hideError(), 4000);
         }
     </script>
 </body>
 </html>
-```eof
